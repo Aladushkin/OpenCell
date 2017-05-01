@@ -1310,7 +1310,7 @@ void RenderScene()
 	SetCullMode(false);
 
 	// give scene a chance to do custom drawing
-	g_scenes[g_scene]->Draw(1);
+	g_scenes[g_scene]->Draw();
 
 	if (g_drawMesh)
 		DrawMesh(g_mesh, g_meshColor);
@@ -1380,7 +1380,7 @@ void RenderScene()
 	}
 
 	// give scene a chance to do custom drawing
-	g_scenes[g_scene]->Draw(0);
+	g_scenes[g_scene]->Draw();
 
 	UnbindSolidShader();
 
@@ -2736,22 +2736,7 @@ int main(int argc, char* argv[])
 	}
 
 	// opening scene
-	g_scenes.push_back(new WaterBalloon("Water Balloons"));
-
-	SoftBody* softRope = new SoftBody("Soft Rope", "../../data/rope.obj");
-	softRope->mScale = Vec3(50.0f);
-	softRope->mClusterSpacing = 1.5f;
-	softRope->mClusterRadius = 0.0f;
-	softRope->mClusterStiffness = 0.55f;
-
-	SoftBody* softBowl = new SoftBody("Soft Bowl", "../../data/bowl_high.ply");
-	softBowl->mScale = Vec3(10.0f);
-	softBowl->mClusterSpacing = 2.0f;
-	softBowl->mClusterRadius = 2.0f;
-	softBowl->mClusterStiffness = 0.55f;
-
-	g_scenes.push_back(softRope);
-	g_scenes.push_back(softBowl);
+	g_scenes.push_back(new Cell("Cell"));
 
 	// init gl
 	const char* title = "Flex Demo (CUDA)";

@@ -10,13 +10,11 @@ public:
 	Cell(const char* name) : Scene(name) {}
 
 	~Cell() {
-		NvFlexExtDestroyTearingCloth(shell->asset);
-		//delete kernel;
-		//delete cytoplasm;
+		delete shell;
+		//NvFlexExtDestroyTearingCloth(shell->asset);
 	}
 
-	void Initialize()
-	{
+	void Initialize() {
 		float minSize = 0.25f;
 		float maxSize = 0.5f;
 		float spacing = 4.0f;
@@ -53,6 +51,11 @@ public:
 		g_params.adhesion = 0.0f;
 		g_params.cohesion = 0.02f;
 
+		clearBuffers();
+
+		delete shell;
+		delete cytoplasm;
+
 		shell = new Shell(group++);
 		shell->Initialize();
 
@@ -60,30 +63,6 @@ public:
 		cytoplasm->Initialize();
 
 		mNumFluidParticles = cytoplasm->numberOfParticles;
-
-		//update g_buffers
-
-		g_buffers->triangles.resize(0);
-		g_buffers->springIndices.resize(0);
-		g_buffers->springStiffness.resize(0);
-		g_buffers->springLengths.resize(0);
-
-		for (int i = 0; i < shell->asset->numTriangles; ++i)
-		{
-			g_buffers->triangles.push_back(shell->asset->triangleIndices[i * 3 + 0]);
-			g_buffers->triangles.push_back(shell->asset->triangleIndices[i * 3 + 1]);
-			g_buffers->triangles.push_back(shell->asset->triangleIndices[i * 3 + 2]);
-		}
-
-		for (int i = 0; i < shell->asset->numSprings * 2; ++i) {
-			g_buffers->springIndices.push_back(shell->asset->springIndices[i]);
-		}
-
-		for (int i = 0; i < shell->asset->numSprings; ++i)
-		{
-			g_buffers->springStiffness.push_back(shell->asset->springCoefficients[i]);
-			g_buffers->springLengths.push_back(shell->asset->springRestLengths[i]);
-		}
 
 		g_drawPoints = false;
 		g_drawEllipsoids = true;
@@ -93,6 +72,12 @@ public:
 
 	}
 	
+	void clearBuffers() {
+		g_buffers->triangles.resize(0);
+		g_buffers->springIndices.resize(0);
+		g_buffers->springStiffness.resize(0);
+		g_buffers->springLengths.resize(0);
+	}
 
 	void Sync()
 	{
@@ -107,8 +92,7 @@ public:
 	void Update() {
 	}
 
-	void Draw()
-	{
+	void Draw() {
 		shell->Draw();
 		cytoplasm->Draw();
 	}
