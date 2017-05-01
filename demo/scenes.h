@@ -27,27 +27,14 @@
 
 #pragma once
 
-// disable some warnings
-#if _WIN32
-#pragma warning(disable: 4267)  // conversion from 'size_t' to 'int', possible loss of data
-#endif
+#include "component.h"
 
-class Scene
+class Scene : public Component
 {
 public:
 
 	Scene(const char* name) : mName(name) {}
 	
-	virtual void Initialize() = 0;
-	virtual void PostInitialize() {}
-	
-	// update any buffers (all guaranteed to be mapped here)
-	virtual void Update() {}	
-
-	// send any changes to flex (all buffers guaranteed to be unmapped here)
-	virtual void Sync() {}
-	
-	virtual void Draw(int pass) {}
 	virtual void KeyDown(int key) {}
 	virtual void DoGui() {}
 	virtual void CenterCamera() {}
@@ -60,5 +47,4 @@ public:
 };
 
 
-#include "scenes/softbody.h"
-#include "scenes/waterballoon.h"
+#include "scenes/cell.h"
