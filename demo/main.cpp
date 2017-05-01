@@ -1,30 +1,3 @@
-// This code contains NVIDIA Confidential Information and is disclosed to you
-// under a form of NVIDIA software license agreement provided separately to you.
-//
-// Notice
-// NVIDIA Corporation and its licensors retain all intellectual property and
-// proprietary rights in and to this software and related documentation and
-// any modifications thereto. Any use, reproduction, disclosure, or
-// distribution of this software and related documentation without an express
-// license agreement from NVIDIA Corporation is strictly prohibited.
-//
-// ALL NVIDIA DESIGN SPECIFICATIONS, CODE ARE PROVIDED "AS IS.". NVIDIA MAKES
-// NO WARRANTIES, EXPRESSED, IMPLIED, STATUTORY, OR OTHERWISE WITH RESPECT TO
-// THE MATERIALS, AND EXPRESSLY DISCLAIMS ALL IMPLIED WARRANTIES OF NONINFRINGEMENT,
-// MERCHANTABILITY, AND FITNESS FOR A PARTICULAR PURPOSE.
-//
-// Information and code furnished is believed to be accurate and reliable.
-// However, NVIDIA Corporation assumes no responsibility for the consequences of use of such
-// information or for any infringement of patents or other rights of third parties that may
-// result from its use. No license is granted by implication or otherwise under any patent
-// or patent rights of NVIDIA Corporation. Details are subject to change without notice.
-// This code supersedes and replaces all information previously supplied.
-// NVIDIA Corporation products are not authorized for use as critical
-// components in life support devices or systems without express written approval of
-// NVIDIA Corporation.
-//
-// Copyright (c) 2013-2017 NVIDIA Corporation. All rights reserved.
-
 #include "../core/types.h"
 #include "../core/maths.h"
 #include "../core/platform.h"
@@ -49,75 +22,41 @@
 #include "shaders.h"
 #include "imgui.h"
 
-SDL_Window* g_window;			// window handle
-unsigned int g_windowId;		// window id
+#include "SimBuffer.h"
+#include "UIController.h"
 
-#define SDL_CONTROLLER_BUTTON_LEFT_TRIGGER (SDL_CONTROLLER_BUTTON_MAX + 1)
-#define SDL_CONTROLLER_BUTTON_RIGHT_TRIGGER (SDL_CONTROLLER_BUTTON_MAX + 2)
-
-int GetKeyFromGameControllerButton(SDL_GameControllerButton button)
-{
-	switch (button)
-	{
-	case SDL_CONTROLLER_BUTTON_DPAD_UP:			{	return SDLK_q;		} // -- camera translate up
-	case SDL_CONTROLLER_BUTTON_DPAD_DOWN:		{	return SDLK_z;		} // -- camera translate down
-	case SDL_CONTROLLER_BUTTON_DPAD_LEFT:		{	return SDLK_h;		} // -- hide GUI
-	case SDL_CONTROLLER_BUTTON_DPAD_RIGHT:		{	return -1;			} // -- unassigned
-	case SDL_CONTROLLER_BUTTON_START:			{	return SDLK_RETURN;	} // -- start selected scene
-	case SDL_CONTROLLER_BUTTON_BACK:			{	return SDLK_ESCAPE;	} // -- quit
-	case SDL_CONTROLLER_BUTTON_LEFTSHOULDER:	{	return SDLK_UP;		} // -- select prev scene
-	case SDL_CONTROLLER_BUTTON_RIGHTSHOULDER:	{	return SDLK_DOWN;	} // -- select next scene
-	case SDL_CONTROLLER_BUTTON_A:				{	return SDLK_g;		} // -- toggle gravity
-	case SDL_CONTROLLER_BUTTON_B:				{	return SDLK_p;		} // -- pause
-	case SDL_CONTROLLER_BUTTON_X:				{	return SDLK_r;		} // -- reset
-	case SDL_CONTROLLER_BUTTON_Y:				{	return SDLK_o;		} // -- step sim
-	case SDL_CONTROLLER_BUTTON_RIGHT_TRIGGER:	{	return SDLK_SPACE;	} // -- emit particles
-	default:									{	return -1;			} // -- nop
-	};
-};
-
-//
-// Gamepad thresholds taken from XINPUT API
-//
-#define XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE  7849
-#define XINPUT_GAMEPAD_RIGHT_THUMB_DEADZONE 8689
-#define XINPUT_GAMEPAD_TRIGGER_THRESHOLD    30
-
-int deadzones[3] = { XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE, XINPUT_GAMEPAD_RIGHT_THUMB_DEADZONE, XINPUT_GAMEPAD_TRIGGER_THRESHOLD };
-
-inline float joyAxisFilter(int value, int stick)
-{
-	//clamp values in deadzone to zero, and remap rest of range so that it linearly rises in value from edge of deadzone toward max value.
-	if (value < -deadzones[stick])
-		return (value + deadzones[stick]) / (32768.0f - deadzones[stick]);
-	else if (value > deadzones[stick])
-		return (value - deadzones[stick]) / (32768.0f - deadzones[stick]);
-	else
-		return 0.0f;
-}
-
-SDL_GameController* g_gamecontroller = NULL;
+#include "ConsoleController.h"
+#include "RenderParam.h"
+#include "SDLController.h"
+#include "FlexController.h"
 
 using namespace std;
 
-int g_screenWidth = 1280;
-int g_screenHeight = 720;
-int g_msaaSamples = 8;
-
 int g_numSubsteps;
+int g_numExtraMultiplier = 1;
+
+bool g_tweakPanel = true;
+
+bool g_benchmark = false;
+bool g_extensions = true;
+bool g_teamCity = false;
+bool g_interop = true;
+
+RenderConfig renderConfig;
+SDLController sdlController;
+FlexController flexController;
+
+bool g_fullscreen = false;
+
+GLuint g_msaaFbo;
+GLuint g_msaaColorBuf;
+GLuint g_msaaDepthBuf;
 
 // a setting of -1 means Flex will use the device specified in the NVIDIA control panel
 int g_device = -1;
 char g_deviceName[256];
 bool g_vsync = true;
 
-bool g_benchmark = false;
-bool g_extensions = true;
-bool g_teamCity = false;
-bool g_interop = true;
-bool g_d3d12 = false;
-
-FluidRenderer* g_fluidRenderer;
 FluidRenderBuffers g_fluidRenderBuffers;
 DiffuseRenderBuffers g_diffuseRenderBuffers;
 
@@ -127,11 +66,6 @@ NvFlexParams g_params;
 NvFlexTimers g_timers;
 int g_numDetailTimers;
 NvFlexDetailTimer * g_detailTimers;
-
-int g_maxDiffuseParticles;
-unsigned char g_maxNeighborsPerParticle;
-int g_numExtraParticles;
-int g_numExtraMultiplier = 1;
 
 // mesh used for deformable object rendering
 Mesh* g_mesh;
@@ -148,277 +82,9 @@ std::map<NvFlexDistanceFieldId, GpuMesh*> g_fields;
 // flag to request collision shapes be updated
 bool g_shapesChanged = false;
 
-struct SimBuffers
-{
-	NvFlexVector<Vec4> positions;
-	NvFlexVector<Vec4> restPositions;
-	NvFlexVector<Vec3> velocities;
-	NvFlexVector<int> phases;
-	NvFlexVector<float> densities;
-	NvFlexVector<Vec4> anisotropy1;
-	NvFlexVector<Vec4> anisotropy2;
-	NvFlexVector<Vec4> anisotropy3;
-	NvFlexVector<Vec4> normals;
-	NvFlexVector<Vec4> smoothPositions;
-	NvFlexVector<Vec4> diffusePositions;
-	NvFlexVector<Vec4> diffuseVelocities;
-	NvFlexVector<int> diffuseIndices;
-	NvFlexVector<int> activeIndices;
-
-	// convexes
-	NvFlexVector<NvFlexCollisionGeometry> shapeGeometry;
-	NvFlexVector<Vec4> shapePositions;
-	NvFlexVector<Quat> shapeRotations;
-	NvFlexVector<Vec4> shapePrevPositions;
-	NvFlexVector<Quat> shapePrevRotations;
-	NvFlexVector<int> shapeFlags;
-
-	// rigids
-	NvFlexVector<int> rigidOffsets;
-	NvFlexVector<int> rigidIndices;
-	NvFlexVector<int> rigidMeshSize;
-	NvFlexVector<float> rigidCoefficients;
-	NvFlexVector<Quat> rigidRotations;
-	NvFlexVector<Vec3> rigidTranslations;
-	NvFlexVector<Vec3> rigidLocalPositions;
-	NvFlexVector<Vec4> rigidLocalNormals;
-
-	// inflatables
-	NvFlexVector<int> inflatableTriOffsets;
-	NvFlexVector<int> inflatableTriCounts;
-	NvFlexVector<float> inflatableVolumes;
-	NvFlexVector<float> inflatableCoefficients;
-	NvFlexVector<float> inflatablePressures;
-
-	// springs
-	NvFlexVector<int> springIndices;
-	NvFlexVector<float> springLengths;
-	NvFlexVector<float> springStiffness;
-
-	NvFlexVector<int> triangles;
-	NvFlexVector<Vec3> triangleNormals;
-	NvFlexVector<Vec3> uvs;
-
-	SimBuffers(NvFlexLibrary* l) :
-		positions(l), restPositions(l), velocities(l), phases(l), densities(l),
-		anisotropy1(l), anisotropy2(l), anisotropy3(l), normals(l), smoothPositions(l),
-		diffusePositions(l), diffuseVelocities(l), diffuseIndices(l), activeIndices(l),
-		shapeGeometry(l), shapePositions(l), shapeRotations(l), shapePrevPositions(l),
-		shapePrevRotations(l),	shapeFlags(l), rigidOffsets(l), rigidIndices(l), rigidMeshSize(l),
-		rigidCoefficients(l), rigidRotations(l), rigidTranslations(l),
-		rigidLocalPositions(l), rigidLocalNormals(l), inflatableTriOffsets(l),
-		inflatableTriCounts(l), inflatableVolumes(l), inflatableCoefficients(l),
-		inflatablePressures(l), springIndices(l), springLengths(l),
-		springStiffness(l), triangles(l), triangleNormals(l), uvs(l)
-	{}
-};
-
 SimBuffers* g_buffers;
 
-void MapBuffers(SimBuffers* buffers)
-{
-	buffers->positions.map();
-	buffers->restPositions.map();
-	buffers->velocities.map();
-	buffers->phases.map();
-	buffers->densities.map();
-	buffers->anisotropy1.map();
-	buffers->anisotropy2.map();
-	buffers->anisotropy3.map();
-	buffers->normals.map();
-	buffers->diffusePositions.map();
-	buffers->diffuseVelocities.map();
-	buffers->diffuseIndices.map();
-	buffers->smoothPositions.map();
-	buffers->activeIndices.map();
-
-	// convexes
-	buffers->shapeGeometry.map();
-	buffers->shapePositions.map();
-	buffers->shapeRotations.map();
-	buffers->shapePrevPositions.map();
-	buffers->shapePrevRotations.map();
-	buffers->shapeFlags.map();
-
-	buffers->rigidOffsets.map();
-	buffers->rigidIndices.map();
-	buffers->rigidMeshSize.map();
-	buffers->rigidCoefficients.map();
-	buffers->rigidRotations.map();
-	buffers->rigidTranslations.map();
-	buffers->rigidLocalPositions.map();
-	buffers->rigidLocalNormals.map();
-
-	buffers->springIndices.map();
-	buffers->springLengths.map();
-	buffers->springStiffness.map();
-
-	// inflatables
-	buffers->inflatableTriOffsets.map();
-	buffers->inflatableTriCounts.map();
-	buffers->inflatableVolumes.map();
-	buffers->inflatableCoefficients.map();
-	buffers->inflatablePressures.map();
-
-	buffers->triangles.map();
-	buffers->triangleNormals.map();
-	buffers->uvs.map();
-}
-
-void UnmapBuffers(SimBuffers* buffers)
-{
-	// particles
-	buffers->positions.unmap();
-	buffers->restPositions.unmap();
-	buffers->velocities.unmap();
-	buffers->phases.unmap();
-	buffers->densities.unmap();
-	buffers->anisotropy1.unmap();
-	buffers->anisotropy2.unmap();
-	buffers->anisotropy3.unmap();
-	buffers->normals.unmap();
-	buffers->diffusePositions.unmap();
-	buffers->diffuseVelocities.unmap();
-	buffers->diffuseIndices.unmap();
-	buffers->smoothPositions.unmap();
-	buffers->activeIndices.unmap();
-
-	// convexes
-	buffers->shapeGeometry.unmap();
-	buffers->shapePositions.unmap();
-	buffers->shapeRotations.unmap();
-	buffers->shapePrevPositions.unmap();
-	buffers->shapePrevRotations.unmap();
-	buffers->shapeFlags.unmap();
-
-	// rigids
-	buffers->rigidOffsets.unmap();
-	buffers->rigidIndices.unmap();
-	buffers->rigidMeshSize.unmap();
-	buffers->rigidCoefficients.unmap();
-	buffers->rigidRotations.unmap();
-	buffers->rigidTranslations.unmap();
-	buffers->rigidLocalPositions.unmap();
-	buffers->rigidLocalNormals.unmap();
-
-	// springs
-	buffers->springIndices.unmap();
-	buffers->springLengths.unmap();
-	buffers->springStiffness.unmap();
-
-	// inflatables
-	buffers->inflatableTriOffsets.unmap();
-	buffers->inflatableTriCounts.unmap();
-	buffers->inflatableVolumes.unmap();
-	buffers->inflatableCoefficients.unmap();
-	buffers->inflatablePressures.unmap();
-
-	// triangles
-	buffers->triangles.unmap();
-	buffers->triangleNormals.unmap();
-	buffers->uvs.unmap();
-
-}
-
-SimBuffers* AllocBuffers(NvFlexLibrary* lib)
-{
-	return new SimBuffers(lib);
-}
-
-void DestroyBuffers(SimBuffers* buffers)
-{
-	// particles
-	buffers->positions.destroy();
-	buffers->restPositions.destroy();
-	buffers->velocities.destroy();
-	buffers->phases.destroy();
-	buffers->densities.destroy();
-	buffers->anisotropy1.destroy();
-	buffers->anisotropy2.destroy();
-	buffers->anisotropy3.destroy();
-	buffers->normals.destroy();
-	buffers->diffusePositions.destroy();
-	buffers->diffuseVelocities.destroy();
-	buffers->diffuseIndices.destroy();
-	buffers->smoothPositions.destroy();
-	buffers->activeIndices.destroy();
-
-	// convexes
-	buffers->shapeGeometry.destroy();
-	buffers->shapePositions.destroy();
-	buffers->shapeRotations.destroy();
-	buffers->shapePrevPositions.destroy();
-	buffers->shapePrevRotations.destroy();
-	buffers->shapeFlags.destroy();
-
-	// rigids
-	buffers->rigidOffsets.destroy();
-	buffers->rigidIndices.destroy();
-	buffers->rigidMeshSize.destroy();
-	buffers->rigidCoefficients.destroy();
-	buffers->rigidRotations.destroy();
-	buffers->rigidTranslations.destroy();
-	buffers->rigidLocalPositions.destroy();
-	buffers->rigidLocalNormals.destroy();
-
-	// springs
-	buffers->springIndices.destroy();
-	buffers->springLengths.destroy();
-	buffers->springStiffness.destroy();
-
-	// inflatables
-	buffers->inflatableTriOffsets.destroy();
-	buffers->inflatableTriCounts.destroy();
-	buffers->inflatableVolumes.destroy();
-	buffers->inflatableCoefficients.destroy();
-	buffers->inflatablePressures.destroy();
-
-	// triangles
-	buffers->triangles.destroy();
-	buffers->triangleNormals.destroy();
-	buffers->uvs.destroy();
-
-	delete buffers;
-}
-
-Vec3 g_camPos(6.0f, 8.0f, 18.0f);
-Vec3 g_camAngle(0.0f, -DegToRad(20.0f), 0.0f);
-Vec3 g_camVel(0.0f);
-Vec3 g_camSmoothVel(0.0f);
-
-float g_camSpeed;
-float g_camNear;
-float g_camFar;
-
-Vec3 g_lightPos;
-Vec3 g_lightDir;
-Vec3 g_lightTarget;
-
-bool g_pause = false;
-bool g_step = false;
-bool g_capture = false;
-bool g_showHelp = true;
-bool g_tweakPanel = true;
-bool g_fullscreen = false;
-bool g_wireframe = false;
-bool g_debug = false;
-
-bool g_emit = false;
 bool g_warmup = false;
-
-float g_windTime = 0.0f;
-float g_windFrequency = 0.1f;
-float g_windStrength = 0.0f;
-
-bool g_wavePool = false;
-float g_waveTime = 0.0f;
-float g_wavePlane;
-float g_waveFrequency = 1.5f;
-float g_waveAmplitude = 1.0f;
-float g_waveFloorTilt = 0.0f;
-
-Vec3 g_sceneLower;
-Vec3 g_sceneUpper;
 
 float g_blur;
 float g_ior;
@@ -447,28 +113,16 @@ bool g_diffuseShadow;
 float g_diffuseInscatter;
 float g_diffuseOutscatter;
 
-float g_dt = 1.0f / 60.0f;	// the time delta used for simulation
-float g_realdt;				// the real world time delta between updates
-
-float g_waitTime;		// the CPU time spent waiting for the GPU
-float g_updateTime;     // the CPU time spent on Flex
-float g_renderTime;		// the CPU time spent calling OpenGL to render the scene
-                        // the above times don't include waiting for vsync
-float g_simLatency;     // the time the GPU spent between the first and last NvFlexUpdateSolver() operation. Because some GPUs context switch, this can include graphics time.
 
 int g_scene = 0;
-int g_selectedScene = g_scene;
 int g_levelScroll;			// offset for level selection scroll area
 bool g_resetScene = false;  //if the user clicks the reset button or presses the reset key this is set to true;
 
 int g_frame = 0;
 int g_numSolidParticles = 0;
 
-int g_mouseParticle = -1;
 float g_mouseT = 0.0f;
 Vec3 g_mousePos;
-float g_mouseMass;
-bool g_mousePicked = false;
 
 // mouse
 int g_lastx;
@@ -493,33 +147,10 @@ void DrawShapes();
 class Scene;
 vector<Scene*> g_scenes;
 
-struct Emitter
-{
-	Emitter() : mSpeed(0.0f), mEnabled(false), mLeftOver(0.0f), mWidth(8)   {}
-
-	Vec3 mPos;
-	Vec3 mDir;
-	Vec3 mRight;
-	float mSpeed;
-	bool mEnabled;
-	float mLeftOver;
-	int mWidth;
-};
-
-vector<Emitter> g_emitters(1);	// first emitter is the camera 'gun'
-
-struct Rope
-{
-	std::vector<int> mIndices;
-};
-
-vector<Rope> g_ropes;
-
-inline float sqr(float x) { return x*x; }
-
 #include "helpers.h"
 #include "scenes.h"
 #include "benchmark.h"
+#include "FlexParams.h"
 
 void Init(int scene, bool centerCamera = true)
 {
@@ -528,7 +159,7 @@ void Init(int scene, bool centerCamera = true)
 	if (g_flex)
 	{
 		if (g_buffers)
-			DestroyBuffers(g_buffers);
+			delete g_buffers;
 
 		DestroyFluidRenderBuffers(g_fluidRenderBuffers);
 		DestroyDiffuseRenderBuffers(g_diffuseRenderBuffers);
@@ -561,46 +192,21 @@ void Init(int scene, bool centerCamera = true)
 	}
 
 	// alloc buffers
-	g_buffers = AllocBuffers(g_flexLib);
+	g_buffers = new SimBuffers(g_flexLib);
 
 	// map during initialization
-	MapBuffers(g_buffers);
+	g_buffers->MapBuffers();
+	
+	// initialize buffers of particles
+	g_buffers->ResizePositionVelocityPhases();
+	g_buffers->ResizeRigid();
+	g_buffers->ResizeSpring();
+	g_buffers->ResizeShape();
 
-	g_buffers->positions.resize(0);
-	g_buffers->velocities.resize(0);
-	g_buffers->phases.resize(0);
-
-	g_buffers->rigidOffsets.resize(0);
-	g_buffers->rigidIndices.resize(0);
-	g_buffers->rigidMeshSize.resize(0);
-	g_buffers->rigidRotations.resize(0);
-	g_buffers->rigidTranslations.resize(0);
-	g_buffers->rigidCoefficients.resize(0);
-	g_buffers->rigidLocalPositions.resize(0);
-	g_buffers->rigidLocalNormals.resize(0);
-
-	g_buffers->springIndices.resize(0);
-	g_buffers->springLengths.resize(0);
-	g_buffers->springStiffness.resize(0);
-	g_buffers->triangles.resize(0);
-	g_buffers->triangleNormals.resize(0);
-	g_buffers->uvs.resize(0);
-
+	// i don't know what it is
+	//g_ropes.resize(0);
 	g_meshSkinIndices.resize(0);
 	g_meshSkinWeights.resize(0);
-
-	g_emitters.resize(1);
-	g_emitters[0].mEnabled = false;
-	g_emitters[0].mSpeed = 1.0f;
-
-	g_buffers->shapeGeometry.resize(0);
-	g_buffers->shapePositions.resize(0);
-	g_buffers->shapeRotations.resize(0);
-	g_buffers->shapePrevPositions.resize(0);
-	g_buffers->shapePrevRotations.resize(0);
-	g_buffers->shapeFlags.resize(0);
-
-	g_ropes.resize(0);
 
 	// remove collision shapes
 	delete g_mesh; g_mesh = NULL;
@@ -609,9 +215,7 @@ void Init(int scene, bool centerCamera = true)
 	g_pause = false;
 
 	g_dt = 1.0f / 60.0f;
-	g_waveTime = 0.0f;
-	g_windTime = 0.0f;
-	g_windStrength = 1.0f;
+	//g_waveTime = 0.0f;
 
 	g_blur = 1.0f;
 	g_fluidColor = Vec4(0.1f, 0.4f, 0.8f, 1.0f);
@@ -639,68 +243,9 @@ void Init(int scene, bool centerCamera = true)
 	g_ropeScale = 1.0f;
 	g_drawPlaneBias = 0.0f;
 
-	// sim params
-	g_params.gravity[0] = 0.0f;
-	g_params.gravity[1] = -9.8f;
-	g_params.gravity[2] = 0.0f;
-
-	g_params.wind[0] = 0.0f;
-	g_params.wind[1] = 0.0f;
-	g_params.wind[2] = 0.0f;
-
-	g_params.radius = 0.15f;
-	g_params.viscosity = 0.0f;
-	g_params.dynamicFriction = 0.0f;
-	g_params.staticFriction = 0.0f;
-	g_params.particleFriction = 0.0f; // scale friction between particles by default
-	g_params.freeSurfaceDrag = 0.0f;
-	g_params.drag = 0.0f;
-	g_params.lift = 0.0f;
-	g_params.numIterations = 3;
-	g_params.fluidRestDistance = 0.0f;
-	g_params.solidRestDistance = 0.0f;
-
-	g_params.anisotropyScale = 1.0f;
-	g_params.anisotropyMin = 0.1f;
-	g_params.anisotropyMax = 2.0f;
-	g_params.smoothing = 1.0f;
-
-	g_params.dissipation = 0.0f;
-	g_params.damping = 0.0f;
-	g_params.particleCollisionMargin = 0.0f;
-	g_params.shapeCollisionMargin = 0.0f;
-	g_params.collisionDistance = 0.0f;
-	g_params.plasticThreshold = 0.0f;
-	g_params.plasticCreep = 0.0f;
-	g_params.fluid = false;
-	g_params.sleepThreshold = 0.0f;
-	g_params.shockPropagation = 0.0f;
-	g_params.restitution = 0.0f;
-
-	g_params.maxSpeed = FLT_MAX;
-	g_params.maxAcceleration = 100.0f;	// approximately 10x gravity
-
-	g_params.relaxationMode = eNvFlexRelaxationLocal;
-	g_params.relaxationFactor = 1.0f;
-	g_params.solidPressure = 1.0f;
-	g_params.adhesion = 0.0f;
-	g_params.cohesion = 0.025f;
-	g_params.surfaceTension = 0.0f;
-	g_params.vorticityConfinement = 0.0f;
-	g_params.buoyancy = 1.0f;
-	g_params.diffuseThreshold = 100.0f;
-	g_params.diffuseBuoyancy = 1.0f;
-	g_params.diffuseDrag = 0.8f;
-	g_params.diffuseBallistic = 16;
-	g_params.diffuseSortAxis[0] = 0.0f;
-	g_params.diffuseSortAxis[1] = 0.0f;
-	g_params.diffuseSortAxis[2] = 0.0f;
-	g_params.diffuseLifetime = 2.0f;
+	InitFlexParams(g_params);
 
 	g_numSubsteps = 2;
-
-	// planes created after particles
-	g_params.numPlanes = 1;
 
 	g_diffuseScale = 0.5f;
 	g_diffuseColor = 1.0f;
@@ -715,15 +260,8 @@ void Init(int scene, bool centerCamera = true)
 
 	g_numSolidParticles = 0;
 
-	g_waveFrequency = 1.5f;
-	g_waveAmplitude = 1.5f;
-	g_waveFloorTilt = 0.0f;
-	g_emit = false;
 	g_warmup = false;
 
-	g_mouseParticle = -1;
-
-	g_maxDiffuseParticles = 0;	// number of diffuse particles
 	g_maxNeighborsPerParticle = 96;
 	g_numExtraParticles = 0;	// number of particles allocated but not made active	
 
@@ -733,31 +271,9 @@ void Init(int scene, bool centerCamera = true)
 	// create scene
 	g_scenes[g_scene]->Initialize();
 
-	uint32_t numParticles = g_buffers->positions.size();
-	uint32_t maxParticles = numParticles + g_numExtraParticles*g_numExtraMultiplier;
+	numParticles = g_buffers->positions.size();
+	maxParticles = numParticles + g_numExtraParticles*g_numExtraMultiplier;
 
-	// by default solid particles use the maximum radius
-	if (g_params.fluid && g_params.solidRestDistance == 0.0f)
-		g_params.solidRestDistance = g_params.fluidRestDistance;
-	else
-		g_params.solidRestDistance = g_params.radius;
-
-	// collision distance with shapes half the radius
-	if (g_params.collisionDistance == 0.0f)
-	{
-		g_params.collisionDistance = g_params.radius*0.5f;
-
-		if (g_params.fluid)
-			g_params.collisionDistance = g_params.fluidRestDistance*0.5f;
-	}
-
-	// default particle friction to 10% of shape friction
-	if (g_params.particleFriction == 0.0f)
-		g_params.particleFriction = g_params.dynamicFriction*0.1f;
-
-	// add a margin for detecting contacts between particles and shapes
-	if (g_params.shapeCollisionMargin == 0.0f)
-		g_params.shapeCollisionMargin = g_params.collisionDistance*0.5f;
 
 	// calculate particle bounds
 	Vec3 particleLower, particleUpper;
@@ -774,56 +290,17 @@ void Init(int scene, bool centerCamera = true)
 	g_sceneLower -= g_params.collisionDistance;
 	g_sceneUpper += g_params.collisionDistance;
 
-	// update collision planes to match flexs
-	Vec3 up = Normalize(Vec3(-g_waveFloorTilt, 1.0f, 0.0f));
+	// initialize Diffuse and Smooth
+	g_buffers->ResizeDiffuseSmooth();
 
-	(Vec4&)g_params.planes[0] = Vec4(up.x, up.y, up.z, 0.0f);
-	(Vec4&)g_params.planes[1] = Vec4(0.0f, 0.0f, 1.0f, -g_sceneLower.z);
-	(Vec4&)g_params.planes[2] = Vec4(1.0f, 0.0f, 0.0f, -g_sceneLower.x);
-	(Vec4&)g_params.planes[3] = Vec4(-1.0f, 0.0f, 0.0f, g_sceneUpper.x);
-	(Vec4&)g_params.planes[4] = Vec4(0.0f, 0.0f, -1.0f, g_sceneUpper.z);
-	(Vec4&)g_params.planes[5] = Vec4(0.0f, -1.0f, 0.0f, g_sceneUpper.y);
-
-	g_wavePlane = g_params.planes[2][3];
-
-	g_buffers->diffusePositions.resize(g_maxDiffuseParticles);
-	g_buffers->diffuseVelocities.resize(g_maxDiffuseParticles);
-	g_buffers->diffuseIndices.resize(g_maxDiffuseParticles);
-
-	// for fluid rendering these are the Laplacian smoothed positions
-	g_buffers->smoothPositions.resize(maxParticles);
-
-	g_buffers->normals.resize(0);
-	g_buffers->normals.resize(maxParticles);
-
-	// initialize normals (just for rendering before simulation starts)
-	int numTris = g_buffers->triangles.size() / 3;
-	for (int i = 0; i < numTris; ++i)
-	{
-		Vec3 v0 = Vec3(g_buffers->positions[g_buffers->triangles[i * 3 + 0]]);
-		Vec3 v1 = Vec3(g_buffers->positions[g_buffers->triangles[i * 3 + 1]]);
-		Vec3 v2 = Vec3(g_buffers->positions[g_buffers->triangles[i * 3 + 2]]);
-
-		Vec3 n = Cross(v1 - v0, v2 - v0);
-
-		g_buffers->normals[g_buffers->triangles[i * 3 + 0]] += Vec4(n, 0.0f);
-		g_buffers->normals[g_buffers->triangles[i * 3 + 1]] += Vec4(n, 0.0f);
-		g_buffers->normals[g_buffers->triangles[i * 3 + 2]] += Vec4(n, 0.0f);
-	}
-
-	for (int i = 0; i < int(maxParticles); ++i)
-		g_buffers->normals[i] = Vec4(SafeNormalize(Vec3(g_buffers->normals[i]), Vec3(0.0f, 1.0f, 0.0f)), 0.0f);
-
+	// initialize Normals and Triangles
+	g_buffers->ResizeNormalsTriangles();
 
 	// save mesh positions for skinning
-	if (g_mesh)
-	{
+	if (g_mesh) 
 		g_meshRestPositions = g_mesh->m_positions;
-	}
 	else
-	{
 		g_meshRestPositions.resize(0);
-	}
 
 	// main create method for the Flex solver
 	g_flex = NvFlexCreateSolver(g_flexLib, maxParticles, g_maxDiffuseParticles, g_maxNeighborsPerParticle);
@@ -842,24 +319,10 @@ void Init(int scene, bool centerCamera = true)
 	}
 
 	// create active indices (just a contiguous block for the demo)
-	g_buffers->activeIndices.resize(g_buffers->positions.size());
-	for (int i = 0; i < g_buffers->activeIndices.size(); ++i)
-		g_buffers->activeIndices[i] = i;
+	g_buffers->ResizeActiveIndices();
 
 	// resize particle buffers to fit
-	g_buffers->positions.resize(maxParticles);
-	g_buffers->velocities.resize(maxParticles);
-	g_buffers->phases.resize(maxParticles);
-
-	g_buffers->densities.resize(maxParticles);
-	g_buffers->anisotropy1.resize(maxParticles);
-	g_buffers->anisotropy2.resize(maxParticles);
-	g_buffers->anisotropy3.resize(maxParticles);
-
-	// save rest positions
-	g_buffers->restPositions.resize(g_buffers->positions.size());
-	for (int i = 0; i < g_buffers->positions.size(); ++i)
-		g_buffers->restPositions[i] = g_buffers->positions[i];
+	g_buffers->ResizeFitCell();
 
 	// builds rigids constraints
 	if (g_buffers->rigidOffsets.size())
@@ -878,7 +341,7 @@ void Init(int scene, bool centerCamera = true)
 	}
 
 	// unmap so we can start transferring data to GPU
-	UnmapBuffers(g_buffers);
+	g_buffers->UnmapBuffers();
 
 	//-----------------------------
 	// Send data to Flex
@@ -973,7 +436,7 @@ void Reset()
 void Shutdown()
 {
 	// free buffers
-	DestroyBuffers(g_buffers);
+	delete g_buffers;
 
 	for (auto& iter : g_meshes)
 	{
@@ -998,183 +461,8 @@ void Shutdown()
 
 	NvFlexDestroySolver(g_flex);
 	NvFlexShutdown(g_flexLib);
-
-#if _WIN32
-	if (g_ffmpeg)
-		_pclose(g_ffmpeg);
-#endif
 }
 
-void UpdateEmitters()
-{
-	float spin = DegToRad(15.0f);
-
-	const Vec3 forward(-sinf(g_camAngle.x + spin)*cosf(g_camAngle.y), sinf(g_camAngle.y), -cosf(g_camAngle.x + spin)*cosf(g_camAngle.y));
-	const Vec3 right(Normalize(Cross(forward, Vec3(0.0f, 1.0f, 0.0f))));
-
-	g_emitters[0].mDir = Normalize(forward + Vec3(0.0, 0.4f, 0.0f));
-	g_emitters[0].mRight = right;
-	g_emitters[0].mPos = g_camPos + forward*1.f + Vec3(0.0f, 0.2f, 0.0f) + right*0.65f;
-
-	// process emitters
-	if (g_emit)
-	{
-		int activeCount = NvFlexGetActiveCount(g_flex);
-
-		size_t e = 0;
-
-		// skip camera emitter when moving forward or things get messy
-		if (g_camSmoothVel.z >= 0.025f)
-			e = 1;
-
-		for (; e < g_emitters.size(); ++e)
-		{
-			if (!g_emitters[e].mEnabled)
-				continue;
-
-			Vec3 emitterDir = g_emitters[e].mDir;
-			Vec3 emitterRight = g_emitters[e].mRight;
-			Vec3 emitterPos = g_emitters[e].mPos;
-
-			float r;
-			int phase;
-
-			if (g_params.fluid)
-			{
-				r = g_params.fluidRestDistance;
-				phase = NvFlexMakePhase(0, eNvFlexPhaseSelfCollide | eNvFlexPhaseFluid);
-			}
-			else
-			{
-				r = g_params.solidRestDistance;
-				phase = NvFlexMakePhase(0, eNvFlexPhaseSelfCollide);
-			}
-
-			float numParticles = (g_emitters[e].mSpeed / r)*g_dt;
-
-			// whole number to emit
-			int n = int(numParticles + g_emitters[e].mLeftOver);
-
-			if (n)
-				g_emitters[e].mLeftOver = (numParticles + g_emitters[e].mLeftOver) - n;
-			else
-				g_emitters[e].mLeftOver += numParticles;
-
-			// create a grid of particles (n particles thick)
-			for (int k = 0; k < n; ++k)
-			{
-				int emitterWidth = g_emitters[e].mWidth;
-				int numParticles = emitterWidth*emitterWidth;
-				for (int i = 0; i < numParticles; ++i)
-				{
-					float x = float(i%emitterWidth) - float(emitterWidth/2);
-					float y = float((i / emitterWidth) % emitterWidth) - float(emitterWidth/2);
-
-					if ((sqr(x) + sqr(y)) <= (emitterWidth / 2)*(emitterWidth / 2))
-					{
-						Vec3 up = Normalize(Cross(emitterDir, emitterRight));
-						Vec3 offset = r*(emitterRight*x + up*y) + float(k)*emitterDir*r;
-
-						if (activeCount < g_buffers->positions.size())
-						{
-							g_buffers->positions[activeCount] = Vec4(emitterPos + offset, 1.0f);
-							g_buffers->velocities[activeCount] = emitterDir*g_emitters[e].mSpeed;
-							g_buffers->phases[activeCount] = phase;
-
-							g_buffers->activeIndices.push_back(activeCount);
-
-							activeCount++;
-						}
-					}
-				}
-			}
-		}
-	}
-}
-
-void UpdateCamera()
-{
-	Vec3 forward(-sinf(g_camAngle.x)*cosf(g_camAngle.y), sinf(g_camAngle.y), -cosf(g_camAngle.x)*cosf(g_camAngle.y));
-	Vec3 right(Normalize(Cross(forward, Vec3(0.0f, 1.0f, 0.0f))));
-
-	g_camSmoothVel = Lerp(g_camSmoothVel, g_camVel, 0.1f);
-	g_camPos += (forward*g_camSmoothVel.z + right*g_camSmoothVel.x + Cross(right, forward)*g_camSmoothVel.y);
-}
-
-void UpdateMouse()
-{
-	// mouse button is up release particle
-	if (g_lastb == -1)
-	{
-		if (g_mouseParticle != -1)
-		{
-			// restore particle mass
-			g_buffers->positions[g_mouseParticle].w = g_mouseMass;
-
-			// deselect
-			g_mouseParticle = -1;
-		}
-	}
-
-	// mouse went down, pick new particle
-	if (g_mousePicked)
-	{
-		assert(g_mouseParticle == -1);
-
-		Vec3 origin, dir;
-		GetViewRay(g_lastx, g_screenHeight - g_lasty, origin, dir);
-
-		const int numActive = NvFlexGetActiveCount(g_flex);
-
-		g_mouseParticle = PickParticle(origin, dir, &g_buffers->positions[0], &g_buffers->phases[0], numActive, g_params.radius*0.8f, g_mouseT);
-
-		if (g_mouseParticle != -1)
-		{
-			printf("picked: %d, mass: %f v: %f %f %f\n", g_mouseParticle, g_buffers->positions[g_mouseParticle].w, g_buffers->velocities[g_mouseParticle].x, g_buffers->velocities[g_mouseParticle].y, g_buffers->velocities[g_mouseParticle].z);
-
-			g_mousePos = origin + dir*g_mouseT;
-			g_mouseMass = g_buffers->positions[g_mouseParticle].w;
-			g_buffers->positions[g_mouseParticle].w = 0.0f;		// increase picked particle's mass to force it towards the point
-		}
-
-		g_mousePicked = false;
-	}
-
-	// update picked particle position
-	if (g_mouseParticle != -1)
-	{
-		Vec3 p = Lerp(Vec3(g_buffers->positions[g_mouseParticle]), g_mousePos, 0.8f);
-		Vec3 delta = p - Vec3(g_buffers->positions[g_mouseParticle]);
-
-		g_buffers->positions[g_mouseParticle].x = p.x;
-		g_buffers->positions[g_mouseParticle].y = p.y;
-		g_buffers->positions[g_mouseParticle].z = p.z;
-
-		g_buffers->velocities[g_mouseParticle].x = delta.x / g_dt;
-		g_buffers->velocities[g_mouseParticle].y = delta.y / g_dt;
-		g_buffers->velocities[g_mouseParticle].z = delta.z / g_dt;
-	}
-}
-
-void UpdateWind()
-{
-	g_windTime += g_dt;
-
-	const Vec3 kWindDir = Vec3(3.0f, 15.0f, 0.0f);
-	const float kNoise = Perlin1D(g_windTime*g_windFrequency, 10, 0.25f);
-	Vec3 wind = g_windStrength*kWindDir*Vec3(kNoise, fabsf(kNoise), 0.0f);
-
-	g_params.wind[0] = wind.x;
-	g_params.wind[1] = wind.y;
-	g_params.wind[2] = wind.z;
-
-	if (g_wavePool)
-	{
-		g_waveTime += g_dt;
-
-		g_params.planes[2][3] = g_wavePlane + (sinf(float(g_waveTime)*g_waveFrequency - kPi*0.5f)*0.5f + 0.5f)*g_waveAmplitude;
-	}
-}
 
 void SyncScene()
 {
@@ -1258,7 +546,7 @@ void RenderScene()
 	// setup view and state
 
 	float fov = kPi / 4.0f;
-	float aspect = float(g_screenWidth) / g_screenHeight;
+	float aspect = float(renderConfig.GetWidth()) / float(renderConfig.GetHeight());
 
 	Matrix44 proj = ProjectionMatrix(RadToDeg(fov), aspect, g_camNear, g_camFar);
 	Matrix44 view = RotationMatrix(-g_camAngle.x, Vec3(0.0f, 1.0f, 0.0f))*RotationMatrix(-g_camAngle.y, Vec3(cosf(-g_camAngle.x), 0.0f, sinf(-g_camAngle.x)))*TranslationMatrix(-Point3(g_camPos));
@@ -1310,7 +598,7 @@ void RenderScene()
 	SetCullMode(false);
 
 	// give scene a chance to do custom drawing
-	g_scenes[g_scene]->Draw();
+	g_scenes[g_scene]->Draw(1);
 
 	if (g_drawMesh)
 		DrawMesh(g_mesh, g_meshColor);
@@ -1320,12 +608,6 @@ void RenderScene()
 	if (g_drawCloth && g_buffers->triangles.size())
 	{
 		DrawCloth(&g_buffers->positions[0], &g_buffers->normals[0], g_buffers->uvs.size() ? &g_buffers->uvs[0].x : NULL, &g_buffers->triangles[0], g_buffers->triangles.size() / 3, g_buffers->positions.size(), 3, g_expandCloth);
-	}
-
-	if (g_drawRopes)
-	{
-		for (size_t i = 0; i < g_ropes.size(); ++i)
-			DrawRope(&g_buffers->positions[0], &g_ropes[i].mIndices[0], g_ropes[i].mIndices.size(), radius*g_ropeScale, i);
 	}
 
 	int shadowParticles = numParticles;
@@ -1373,34 +655,28 @@ void RenderScene()
 	if (g_drawCloth && g_buffers->triangles.size())
 		DrawCloth(&g_buffers->positions[0], &g_buffers->normals[0], g_buffers->uvs.size() ? &g_buffers->uvs[0].x : NULL, &g_buffers->triangles[0], g_buffers->triangles.size() / 3, g_buffers->positions.size(), 3, g_expandCloth);
 
-	if (g_drawRopes)
-	{
-		for (size_t i = 0; i < g_ropes.size(); ++i)
-			DrawRope(&g_buffers->positions[0], &g_ropes[i].mIndices[0], g_ropes[i].mIndices.size(), g_params.radius*0.5f*g_ropeScale, i);
-	}
-
 	// give scene a chance to do custom drawing
-	g_scenes[g_scene]->Draw();
+	g_scenes[g_scene]->Draw(0);
 
 	UnbindSolidShader();
 
 
 	// first pass of diffuse particles (behind fluid surface)
 	if (g_drawDiffuse)
-		RenderDiffuse(g_fluidRenderer, g_diffuseRenderBuffers, numDiffuse, radius*g_diffuseScale, float(g_screenWidth), aspect, fov, g_diffuseColor, g_lightPos, g_lightTarget, lightTransform, g_shadowMap, g_diffuseMotionScale, g_diffuseInscatter, g_diffuseOutscatter, g_diffuseShadow, false);
+		RenderDiffuse(g_fluidRenderer, g_diffuseRenderBuffers, numDiffuse, radius*g_diffuseScale, float(renderConfig.GetWidth()), aspect, fov, g_diffuseColor, g_lightPos, g_lightTarget, lightTransform, g_shadowMap, g_diffuseMotionScale, g_diffuseInscatter, g_diffuseOutscatter, g_diffuseShadow, false);
 
 	if (g_drawEllipsoids && g_params.fluid)
 	{
 		// draw solid particles separately
 		if (g_numSolidParticles && g_drawPoints)
-			DrawPoints(g_fluidRenderBuffers.mPositionVBO, g_fluidRenderBuffers.mDensityVBO, g_fluidRenderBuffers.mIndices, g_numSolidParticles, 0, radius, float(g_screenWidth), aspect, fov, g_lightPos, g_lightTarget, lightTransform, g_shadowMap, g_drawDensity);
+			DrawPoints(g_fluidRenderBuffers.mPositionVBO, g_fluidRenderBuffers.mDensityVBO, g_fluidRenderBuffers.mIndices, g_numSolidParticles, 0, radius, float(renderConfig.GetWidth()), aspect, fov, g_lightPos, g_lightTarget, lightTransform, g_shadowMap, g_drawDensity);
 
 		// render fluid surface
-		RenderEllipsoids(g_fluidRenderer, g_fluidRenderBuffers, numParticles - g_numSolidParticles, g_numSolidParticles, radius, float(g_screenWidth), aspect, fov, g_lightPos, g_lightTarget, lightTransform, g_shadowMap, g_fluidColor, g_blur, g_ior, g_drawOpaque);
+		RenderEllipsoids(g_fluidRenderer, g_fluidRenderBuffers, numParticles - g_numSolidParticles, g_numSolidParticles, radius, float(renderConfig.GetWidth()), aspect, fov, g_lightPos, g_lightTarget, lightTransform, g_shadowMap, g_fluidColor, g_blur, g_ior, g_drawOpaque);
 
 		// second pass of diffuse particles for particles in front of fluid surface
 		if (g_drawDiffuse)
-			RenderDiffuse(g_fluidRenderer, g_diffuseRenderBuffers, numDiffuse, radius*g_diffuseScale, float(g_screenWidth), aspect, fov, g_diffuseColor, g_lightPos, g_lightTarget, lightTransform, g_shadowMap, g_diffuseMotionScale, g_diffuseInscatter, g_diffuseOutscatter, g_diffuseShadow, true);
+			RenderDiffuse(g_fluidRenderer, g_diffuseRenderBuffers, numDiffuse, radius*g_diffuseScale, float(renderConfig.GetWidth()), aspect, fov, g_diffuseColor, g_lightPos, g_lightTarget, lightTransform, g_shadowMap, g_diffuseMotionScale, g_diffuseInscatter, g_diffuseOutscatter, g_diffuseShadow, true);
 	}
 	else
 	{
@@ -1410,7 +686,7 @@ void RenderScene()
 			int offset = g_drawMesh ? g_numSolidParticles : 0;
 
 			if (g_buffers->activeIndices.size())
-				DrawPoints(g_fluidRenderBuffers.mPositionVBO, g_fluidRenderBuffers.mDensityVBO, g_fluidRenderBuffers.mIndices, numParticles - offset, offset, radius, float(g_screenWidth), aspect, fov, g_lightPos, g_lightTarget, lightTransform, g_shadowMap, g_drawDensity);
+				DrawPoints(g_fluidRenderBuffers.mPositionVBO, g_fluidRenderBuffers.mDensityVBO, g_fluidRenderBuffers.mIndices, numParticles - offset, offset, radius, float(renderConfig.GetWidth()), aspect, fov, g_lightPos, g_lightTarget, lightTransform, g_shadowMap, g_drawDensity);
 		}
 	}
 
@@ -1418,14 +694,6 @@ void RenderScene()
 
 void RenderDebug()
 {
-	if (g_mouseParticle != -1)
-	{
-		// draw mouse spring
-		BeginLines();
-		DrawLine(g_mousePos, Vec3(g_buffers->positions[g_mouseParticle]), Vec4(1.0f));
-		EndLines();
-	}
-
 	// springs
 	if (g_drawSprings)
 	{
@@ -1658,8 +926,8 @@ int DoUI()
 		const int numParticles = NvFlexGetActiveCount(g_flex);
 		const int numDiffuse = NvFlexGetDiffuseParticles(g_flex, NULL, NULL, NULL);
 
-		int x = g_screenWidth - 200;
-		int y = g_screenHeight - 23;
+		int x = renderConfig.GetWidth() - 200;
+		int y = renderConfig.GetHeight() - 23;
 
 		// imgui
 		unsigned char button = 0;
@@ -1668,7 +936,7 @@ int DoUI()
 		else if (g_lastb == SDL_BUTTON_RIGHT)
 			button = IMGUI_MBUT_RIGHT;
 
-		imguiBeginFrame(g_lastx, g_screenHeight - g_lasty, button, 0);
+		imguiBeginFrame(g_lastx, renderConfig.GetHeight() - g_lasty, button, 0);
 
 		x += 180;
 
@@ -1739,36 +1007,18 @@ int DoUI()
 		int uiOffset = 250;
 		int uiBorder = 20;
 		int uiWidth = 200;
-		int uiHeight = g_screenHeight - uiOffset - uiBorder * 3;
+		int uiHeight = renderConfig.GetHeight() - uiOffset - uiBorder * 3;
 		int uiLeft = uiBorder;
-
-		if (g_tweakPanel)
-			imguiBeginScrollArea("Scene", uiLeft, g_screenHeight - uiBorder - uiOffset, uiWidth, uiOffset, &g_levelScroll);
-		else
-			imguiBeginScrollArea("Scene", uiLeft, uiBorder, uiWidth, g_screenHeight - uiBorder - uiBorder, &g_levelScroll);
-
-		for (int i = 0; i < int(g_scenes.size()); ++i)
-		{
-			unsigned int color = g_scene == i ? imguiRGBA(255, 151, 61, 255) : imguiRGBA(255, 255, 255, 200);
-			if (imguiItem(g_scenes[i]->GetName(), true, color, i == g_selectedScene))
-			{
-				newScene = i;
-			}
-		}
-
-		imguiEndScrollArea();
 
 		if (g_tweakPanel)
 		{
 			static int scroll = 0;
 
-			imguiBeginScrollArea("Options", uiLeft, g_screenHeight - uiBorder - uiHeight - uiOffset - uiBorder, uiWidth, uiHeight, &scroll);
+			imguiBeginScrollArea("Options", uiLeft, renderConfig.GetHeight() - uiBorder - uiHeight  - uiBorder, uiWidth, uiHeight, &scroll);
 			imguiSeparatorLine();
 
 			// global options
 			imguiLabel("Global");
-			if (imguiCheck("Emit particles", g_emit))
-				g_emit = !g_emit;
 
 			if (imguiCheck("Pause", g_pause))
 				g_pause = !g_pause;
@@ -1849,7 +1099,6 @@ int DoUI()
 
 			// cloth params
 			imguiSeparatorLine();
-			imguiSlider("Wind", &g_windStrength, -1.0f, 1.0f, 0.01f);
 			imguiSlider("Drag", &g_params.drag, 0.0f, 1.0f, 0.01f);
 			imguiSlider("Lift", &g_params.lift, 0.0f, 1.0f, 0.01f);
 			imguiSeparatorLine();
@@ -1999,7 +1248,7 @@ void UpdateFrame()
 
 	double waitBeginTime = GetSeconds();
 
-	MapBuffers(g_buffers);
+	g_buffers->MapBuffers();
 
 	double waitEndTime = GetSeconds();
 
@@ -2007,9 +1256,6 @@ void UpdateFrame()
 
 	if (!g_pause || g_step)	
 	{	
-		UpdateEmitters();
-		UpdateMouse();
-		UpdateWind();
 		UpdateScene();
 	}
 
@@ -2040,27 +1286,18 @@ void UpdateFrame()
 
 	const int newScene = DoUI();
 
-	UnmapBuffers(g_buffers);
-
-	// move mouse particle (must be done here as GetViewRay() uses the GL projection state)
-	if (g_mouseParticle != -1)
-	{
-		Vec3 origin, dir;
-		GetViewRay(g_lastx, g_screenHeight - g_lasty, origin, dir);
-
-		g_mousePos = origin + dir*g_mouseT;
-	}
+	g_buffers->UnmapBuffers();
 
 	if (g_capture)
 	{
 		TgaImage img;
-		img.m_width = g_screenWidth;
-		img.m_height = g_screenHeight;
-		img.m_data = new uint32_t[g_screenWidth*g_screenHeight];
+		img.m_width = renderConfig.GetWidth();
+		img.m_height = renderConfig.GetHeight();
+		img.m_data = new uint32_t[renderConfig.GetWidth()*renderConfig.GetHeight()];
 
-		ReadFrame((int*)img.m_data, g_screenWidth, g_screenHeight);
+		ReadFrame((int*)img.m_data, renderConfig.GetWidth(), renderConfig.GetHeight());
 
-		fwrite(img.m_data, sizeof(uint32_t)*g_screenWidth*g_screenHeight, 1, g_ffmpeg);
+		fwrite(img.m_data, sizeof(uint32_t)*renderConfig.GetWidth()*renderConfig.GetHeight(), 1, g_ffmpeg);
 
 		delete[] img.m_data;
 	}
@@ -2081,8 +1318,6 @@ void UpdateFrame()
 		Init(g_scene);
 		return;
 	}
-
-
 
 	//-------------------------------------------------------------------
 	// Flex Update
@@ -2179,82 +1414,8 @@ void UpdateFrame()
 	PresentFrame(g_vsync);
 }
 
-void ReshapeWindow(int width, int height)
-{
-	if (!g_benchmark)
-		printf("Reshaping\n");
-
-	ReshapeRender(g_window);
-
-	if (!g_fluidRenderer || (width != g_screenWidth || height != g_screenHeight))
-	{
-		if (g_fluidRenderer)
-			DestroyFluidRenderer(g_fluidRenderer);
-		g_fluidRenderer = CreateFluidRenderer(width, height);
-	}
-
-	g_screenWidth = width;
-	g_screenHeight = height;
-}
-
-void InputArrowKeysDown(int key, int x, int y)
-{
-	switch (key)
-	{
-	case SDLK_DOWN:
-	{
-		if (g_selectedScene < int(g_scenes.size()) - 1)
-			g_selectedScene++;
-
-		// update scroll UI to center on selected scene
-		g_levelScroll = max((g_selectedScene - 4) * 24, 0);
-		break;
-	}
-	case SDLK_UP:
-	{
-		if (g_selectedScene > 0)
-			g_selectedScene--;
-
-		// update scroll UI to center on selected scene
-		g_levelScroll = max((g_selectedScene - 4) * 24, 0);
-		break;
-	}
-	case SDLK_LEFT:
-	{
-		if (g_scene > 0)
-			--g_scene;
-		Init(g_scene);
-
-		// update scroll UI to center on selected scene
-		g_levelScroll = max((g_scene - 4) * 24, 0);
-		break;
-	}
-	case SDLK_RIGHT:
-	{
-		if (g_scene < int(g_scenes.size()) - 1)
-			++g_scene;
-		Init(g_scene);
-
-		// update scroll UI to center on selected scene
-		g_levelScroll = max((g_scene - 4) * 24, 0);
-		break;
-	}
-	}
-}
-
-void InputArrowKeysUp(int key, int x, int y)
-{
-}
-
 bool InputKeyboardDown(unsigned char key, int x, int y)
 {
-	if (key > '0' && key <= '9')
-	{
-		g_scene = key - '0' - 1;
-		Init(g_scene);
-		return false;
-	}
-
 	float kSpeed = g_camSpeed;
 
 	switch (key)
@@ -2286,7 +1447,6 @@ bool InputKeyboardDown(unsigned char key, int x, int y)
 	}
 	case 'z':
 	{
-		//g_drawCloth = !g_drawCloth;
 		g_camVel.y = -kSpeed;
 		break;
 	}
@@ -2295,13 +1455,13 @@ bool InputKeyboardDown(unsigned char key, int x, int y)
 	{
 		if (g_fullscreen)
 		{
-			SDL_SetWindowFullscreen(g_window, 0);
-			ReshapeWindow(1280, 720);
+			SDL_SetWindowFullscreen(renderConfig.GetWindow(), 0);
+			renderConfig.ReshapeWindow(1280, 720);
 			g_fullscreen = false;
 		}
 		else
 		{
-			SDL_SetWindowFullscreen(g_window, SDL_WINDOW_FULLSCREEN_DESKTOP);
+			SDL_SetWindowFullscreen(renderConfig.GetWindow(), SDL_WINDOW_FULLSCREEN_DESKTOP);
 			g_fullscreen = true;
 		}
 		break;
@@ -2309,52 +1469,6 @@ bool InputKeyboardDown(unsigned char key, int x, int y)
 	case 'r':
 	{
 		g_resetScene = true;
-		break;
-	}
-	case 'y':
-	{
-		g_wavePool = !g_wavePool;
-		break;
-	}
-	case 'c':
-	{
-#if _WIN32
-		if (!g_ffmpeg)
-		{
-			// open ffmpeg stream
-
-			int i = 0;
-			char buf[255];
-			FILE* f = NULL;
-
-			do
-			{
-				sprintf(buf, "../../movies/output%d.mp4", i);
-				f = fopen(buf, "rb");
-				if (f)
-					fclose(f);
-
-				++i;
-			} while (f);
-
-			const char* str = "ffmpeg -r 60 -f rawvideo -pix_fmt rgba -s 1280x720 -i - "
-				"-threads 0 -preset fast -y -crf 19 -pix_fmt yuv420p -tune animation -vf vflip %s";
-
-			char cmd[1024];
-			sprintf(cmd, str, buf);
-
-			g_ffmpeg = _popen(cmd, "wb");
-			assert(g_ffmpeg);
-		}
-		else
-		{
-			_pclose(g_ffmpeg);
-			g_ffmpeg = NULL;
-		}
-
-		g_capture = !g_capture;
-		g_frame = 0;
-#endif
 		break;
 	}
 	case 'p':
@@ -2407,13 +1521,6 @@ bool InputKeyboardDown(unsigned char key, int x, int y)
 		g_drawRopes = !g_drawRopes;
 		break;
 	}
-	case 'j':
-	{
-		g_windTime = 0.0f;
-		g_windStrength = 1.5f;
-		g_windFrequency = 0.2f;
-		break;
-	}
 	case '.':
 	{
 		g_profile = !g_profile;
@@ -2435,31 +1542,14 @@ bool InputKeyboardDown(unsigned char key, int x, int y)
 
 		break;
 	}
-	case ' ':
-	{
-		g_emit = !g_emit;
-		break;
-	}
 	case ';':
 	{
 		g_debug = !g_debug;
 		break;
 	}
-	case 13:
-	{
-		g_scene = g_selectedScene;
-		Init(g_scene);
-		break;
-	}
-	case 27:
-	{
-		// return quit = true
-		return true;
-	}
 	};
 
 	g_scenes[g_scene]->KeyDown(key);
-
 	return false;
 }
 
@@ -2508,8 +1598,7 @@ void MouseFunc(int b, int state, int x, int y)
 
 		if ((SDL_GetModState() & KMOD_LSHIFT) && g_lastb == SDL_BUTTON_LEFT)
 		{
-			// record that we need to update the picked particle
-			g_mousePicked = true;
+
 		}
 		break;
 	}
@@ -2542,42 +1631,30 @@ void MouseMotionFunc(unsigned state, int x, int y)
 
 bool g_Error = false;
 
-void ErrorCallback(NvFlexErrorSeverity, const char* msg, const char* file, int line)
-{
-	printf("Flex: %s - %s:%d\n", msg, file, line);
-	g_Error = true;
-	//assert(0); asserts are bad for TeamCity
-}
-
 void ControllerButtonEvent(SDL_ControllerButtonEvent event)
 {
 	// map controller buttons to keyboard keys
 	if (event.type == SDL_CONTROLLERBUTTONDOWN)
 	{
 		InputKeyboardDown(GetKeyFromGameControllerButton(SDL_GameControllerButton(event.button)), 0, 0);
-		InputArrowKeysDown(GetKeyFromGameControllerButton(SDL_GameControllerButton(event.button)), 0, 0);
 
 		if (event.button == SDL_CONTROLLER_BUTTON_LEFT_TRIGGER)
 		{
 			// Handle picking events using the game controller
-			g_lastx = g_screenWidth / 2;
-			g_lasty = g_screenHeight / 2;
+			g_lastx = renderConfig.GetWidth() / 2;
+			g_lasty = renderConfig.GetHeight() / 2;
 			g_lastb = 1;
-
-			// record that we need to update the picked particle
-			g_mousePicked = true;
 		}
 	}
 	else
 	{
 		InputKeyboardUp(GetKeyFromGameControllerButton(SDL_GameControllerButton(event.button)), 0, 0);
-		InputArrowKeysUp(GetKeyFromGameControllerButton(SDL_GameControllerButton(event.button)), 0, 0);
 
 		if (event.button == SDL_CONTROLLER_BUTTON_LEFT_TRIGGER)
 		{
 			// Handle picking events using the game controller
-			g_lastx = g_screenWidth / 2;
-			g_lasty = g_screenHeight / 2;
+			g_lastx = renderConfig.GetWidth() / 2;
+			g_lasty = renderConfig.GetHeight() / 2;
 			g_lastb = -1;
 		}
 	}
@@ -2593,18 +1670,6 @@ void ControllerDeviceUpdate()
 			g_gamecontroller = SDL_GameControllerOpen(0);
 		}
 	}
-}
-
-void SDLInit(const char* title)
-{
-	if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMECONTROLLER) < 0)	// Initialize SDL's Video subsystem and game controllers
-		printf("Unable to initialize SDL");
-
-	// Create our window centered
-	g_window = SDL_CreateWindow(title, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
-		g_screenWidth, g_screenHeight, SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE);
-
-	g_windowId = SDL_GetWindowID(g_window);
 }
 
 void SDLMainLoop()
@@ -2626,13 +1691,11 @@ void SDLMainLoop()
 			case SDL_KEYDOWN:
 				if (e.key.keysym.sym < 256 && (e.key.keysym.mod == KMOD_NONE || (e.key.keysym.mod & KMOD_NUM)))
 					quit = InputKeyboardDown(e.key.keysym.sym, 0, 0);
-				InputArrowKeysDown(e.key.keysym.sym, 0, 0);
 				break;
 
 			case SDL_KEYUP:
 				if (e.key.keysym.sym < 256 && (e.key.keysym.mod == 0 || (e.key.keysym.mod & KMOD_NUM)))
 					InputKeyboardUp(e.key.keysym.sym, 0, 0);
-				InputArrowKeysUp(e.key.keysym.sym, 0, 0);
 				break;
 
 			case SDL_MOUSEMOTION:
@@ -2648,10 +1711,10 @@ void SDLMainLoop()
 				break;
 
 			case SDL_WINDOWEVENT:
-				if (e.window.windowID == g_windowId)
+				if (e.window.windowID == sdlController.GetWindowId())
 				{
 					if (e.window.event == SDL_WINDOWEVENT_SIZE_CHANGED)
-						ReshapeWindow(e.window.data1, e.window.data2);
+						renderConfig.ReshapeWindow(e.window.data1, e.window.data2);
 				}
 				break;
 
@@ -2673,129 +1736,33 @@ void SDLMainLoop()
 	}
 }
 
-
 int main(int argc, char* argv[])
 {
-	// process command line args
-	for (int i = 1; i < argc; ++i)
-	{
-		int d;
-		if (sscanf(argv[i], "-device=%d", &d))
-			g_device = d;
+	// Read argument from console
+	ConsoleController(argc, argv);
 
-		if (sscanf(argv[i], "-extensions=%d", &d))
-			g_extensions = d != 0;
-
-		if (strstr(argv[i], "-benchmark"))
-		{
-			g_benchmark = true;
-			g_profile = true;
-		}
-
-		if (strstr(argv[i], "-d3d12"))
-			g_d3d12 = true;
-
-		if (strstr(argv[i], "-tc"))
-			g_teamCity = true;
-
-		if (sscanf(argv[i], "-msaa=%d", &d))
-			g_msaaSamples = d;
-
-		int w = 1280;
-		int h = 720;
-		if (sscanf(argv[i], "-fullscreen=%dx%d", &w, &h) == 2)
-		{
-			g_screenWidth = w;
-			g_screenHeight = h;
-			g_fullscreen = true;
-		}
-		else if (strstr(argv[i], "-fullscreen"))
-		{
-			g_screenWidth = w;
-			g_screenHeight = h;
-			g_fullscreen = true;
-		}
-
-		if (sscanf(argv[i], "-vsync=%d", &d))
-			g_vsync = d != 0;
-
-		if (sscanf(argv[i], "-multiplier=%d", &d) == 1)
-		{
-			g_numExtraMultiplier = d;
-		}
-
-		if (strstr(argv[i], "-disabletweak"))
-		{
-			g_tweakPanel = false;
-		}
-
-		if (strstr(argv[i], "-disableinterop"))
-		{
-			g_interop = false;
-		}
-	}
-
-	// opening scene
-	g_scenes.push_back(new Cell("Cell"));
+	// init controller
+	sdlController.SDLInit(&renderConfig, "Flex Demo (CUDA)");
+	if (g_fullscreen)
+		SDL_SetWindowFullscreen(renderConfig.GetWindow(), SDL_WINDOW_FULLSCREEN_DESKTOP);
 
 	// init gl
-	const char* title = "Flex Demo (CUDA)";
+	renderConfig.InitRender(g_fullscreen);
+	renderConfig.ReshapeWindow();
 
-	SDLInit(title);
-
-	InitRender(g_window, g_fullscreen, g_msaaSamples);
-
-	if (g_fullscreen)
-		SDL_SetWindowFullscreen(g_window, SDL_WINDOW_FULLSCREEN_DESKTOP);
-
-	ReshapeWindow(g_screenWidth, g_screenHeight);
-
-	// use the PhysX GPU selected from the NVIDIA control panel
-	if (g_device == -1)
-		g_device = NvFlexDeviceGetSuggestedOrdinal();
-
-	// Create an optimized CUDA context for Flex and set it on the 
-	// calling thread. This is an optional call, it is fine to use 
-	// a regular CUDA context, although creating one through this API
-	// is recommended for best performance.
-	bool success = NvFlexDeviceCreateCudaContext(g_device);
-
-	if (!success)
-	{
-		printf("Error creating CUDA context.\n");
-		exit(-1);
-	}
-
-	NvFlexInitDesc desc;
-	desc.deviceIndex = g_device;
-	desc.enableExtensions = g_extensions;
-	desc.renderDevice = 0;
-	desc.renderContext = 0;
-	desc.computeType = eNvFlexCUDA;
-
-	// Init Flex library, note that no CUDA methods should be called before this 
-	// point to ensure we get the device context we want
-	g_flexLib = NvFlexInit(NV_FLEX_VERSION, ErrorCallback, &desc);
-
-	if (g_Error || g_flexLib == NULL)
-	{
-		printf("Could not initialize Flex, exiting.\n");
-		exit(-1);
-	}
-
-	// store device name
-	strcpy(g_deviceName, NvFlexGetDeviceName(g_flexLib));
-	printf("Compute Device: %s\n\n", g_deviceName);
-
+	// init flex
+	flexController.InitFlex();
+	
+	// init benchmark (возможно стоит выпилить)
 	if (g_benchmark)
 		BenchmarkInit();
 
+	// init default scene
+	g_scenes.push_back(new Cell("Water Balloons"));
+	Init(g_scene);
 
 	// create shadow maps
 	g_shadowMap = ShadowCreate();
-
-	// init default scene
-	Init(g_scene);
 
 	SDLMainLoop();
 		
@@ -2810,7 +1777,7 @@ int main(int argc, char* argv[])
 
 	Shutdown();
 
-	SDL_DestroyWindow(g_window);
+	SDL_DestroyWindow(renderConfig.GetWindow());
 	SDL_Quit();
 
 	return 0;

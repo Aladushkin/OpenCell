@@ -64,7 +64,7 @@ int BenchmarkUpdate()
 		memset(&sTimersSum, 0, sizeof(NvFlexTimers));
 		sTotalFrameTime = 0.0f;
 		sSamples = 0;
-		g_emit = true;
+		//g_emit = true;
 		sDTimersSum.resize(g_numDetailTimers);
 	}
 	if (g_frame >= 200 && g_frame < 400)
@@ -142,23 +142,6 @@ int BenchmarkUpdate()
 
 		if (g_benchmark)
 		{
-
-#if 0
-			// Do basic kinetic energy verification check to ensure that the benchmark runs correctly
-			NvFlexGetVelocities(g_flex, g_buffers->velocities.buffer, g_buffers->velocities.size());
-
-			float sumVelocities = 0.0f;
-			for (int i = 0; i < g_buffers->velocities.size(); ++i)
-			{
-				sumVelocities += g_buffers->velocities[i].x * g_buffers->velocities[i].x + g_buffers->velocities[i].y * g_buffers->velocities[i].y + g_buffers->velocities[i].z * g_buffers->velocities[i].z;
-			}
-			// Tolerance 50%
-			int benchmark_id = benchmarkIter - 1;
-			if (sumVelocities > (benchmarkEnergyCheck[benchmark_id] * 1.50) ||
-				sumVelocities < (benchmarkEnergyCheck[benchmark_id] * 0.50))
-				printf("Benchmark kinetic energy verification failed! Expected: [%f], Actual: [%f]\n\n", benchmarkEnergyCheck[benchmark_id], sumVelocities);
-#endif
-
 			g_frame = -1;
 		}
 	}

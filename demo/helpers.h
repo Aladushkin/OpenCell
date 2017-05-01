@@ -1,38 +1,8 @@
-// This code contains NVIDIA Confidential Information and is disclosed to you
-// under a form of NVIDIA software license agreement provided separately to you.
-//
-// Notice
-// NVIDIA Corporation and its licensors retain all intellectual property and
-// proprietary rights in and to this software and related documentation and
-// any modifications thereto. Any use, reproduction, disclosure, or
-// distribution of this software and related documentation without an express
-// license agreement from NVIDIA Corporation is strictly prohibited.
-//
-// ALL NVIDIA DESIGN SPECIFICATIONS, CODE ARE PROVIDED "AS IS.". NVIDIA MAKES
-// NO WARRANTIES, EXPRESSED, IMPLIED, STATUTORY, OR OTHERWISE WITH RESPECT TO
-// THE MATERIALS, AND EXPRESSLY DISCLAIMS ALL IMPLIED WARRANTIES OF NONINFRINGEMENT,
-// MERCHANTABILITY, AND FITNESS FOR A PARTICULAR PURPOSE.
-//
-// Information and code furnished is believed to be accurate and reliable.
-// However, NVIDIA Corporation assumes no responsibility for the consequences of use of such
-// information or for any infringement of patents or other rights of third parties that may
-// result from its use. No license is granted by implication or otherwise under any patent
-// or patent rights of NVIDIA Corporation. Details are subject to change without notice.
-// This code supersedes and replaces all information previously supplied.
-// NVIDIA Corporation products are not authorized for use as critical
-// components in life support devices or systems without express written approval of
-// NVIDIA Corporation.
-//
-// Copyright (c) 2013-2017 NVIDIA Corporation. All rights reserved.
-
 #pragma once
 
 #include <stdarg.h>
 
-// disable some warnings
-#if _WIN32
-#pragma warning(disable: 4267)  // conversion from 'size_t' to 'int', possible loss of data
-#endif
+inline float sqr(float x) { return x*x; }
 
 float SampleSDF(const float* sdf, int dim, int x, int y, int z)
 {
@@ -909,59 +879,6 @@ void CreateSpringGrid(Vec3 lower, int dx, int dy, int dz, float radius, int phas
 	}	
 }
 
-void CreateRope(Rope& rope, Vec3 start, Vec3 dir, float stiffness, int segments, float length, int phase, float spiralAngle=0.0f, float invmass=1.0f, float give=0.075f)
-{
-	rope.mIndices.push_back(int(g_buffers->positions.size()));
-
-	g_buffers->positions.push_back(Vec4(start.x, start.y, start.z, invmass));
-	g_buffers->velocities.push_back(0.0f);
-	g_buffers->phases.push_back(phase);//int(g_buffers->positions.size()));
-	
-	Vec3 left, right;
-	BasisFromVector(dir, &left, &right);
-
-	float segmentLength = length/segments;
-	Vec3 spiralAxis = dir;
-	float spiralHeight = spiralAngle/(2.0f*kPi)*(length/segments);
-
-	if (spiralAngle > 0.0f)
-		dir = left;
-
-	Vec3 p = start;
-
-	for (int i=0; i < segments; ++i)
-	{
-		int prev = int(g_buffers->positions.size())-1;
-
-		p += dir*segmentLength;
-
-		// rotate 
-		if (spiralAngle > 0.0f)
-		{
-			p += spiralAxis*spiralHeight;
-
-			dir = RotationMatrix(spiralAngle, spiralAxis)*dir;
-		}
-
-		rope.mIndices.push_back(int(g_buffers->positions.size()));
-
-		g_buffers->positions.push_back(Vec4(p.x, p.y, p.z, 1.0f));
-		g_buffers->velocities.push_back(0.0f);
-		g_buffers->phases.push_back(phase);//int(g_buffers->positions.size()));
-
-		// stretch
-		CreateSpring(prev, prev+1, stiffness, give);
-
-		// tether
-		//if (i > 0 && i%4 == 0)
-			//CreateSpring(prev-3, prev+1, -0.25f);
-		
-		// bending spring
-		if (i > 0)
-			CreateSpring(prev-1, prev+1, stiffness*0.5f, give);
-	}
-}
-
 namespace
 {
 	struct Tri
@@ -1124,41 +1041,6 @@ void CreateTetMesh(const char* filename, Vec3 lower, float scale, float stiffnes
 
 		fclose(f);
 	}
-}
-
-
-// finds the closest particle to a view ray
-int PickParticle(Vec3 origin, Vec3 dir, Vec4* particles, int* phases, int n, float radius, float &outT)
-{
-	float maxDistSq = radius*radius;
-	float minT = FLT_MAX;
-	int minIndex = -1;
-
-	for (int i=0; i < n; ++i)
-	{
-		if (phases[i] & eNvFlexPhaseFluid)
-			continue;
-
-		Vec3 delta = Vec3(particles[i])-origin;
-		float t = Dot(delta, dir);
-
-		if (t > 0.0f)
-		{
-			Vec3 perp = delta - t*dir;
-
-			float dSq = LengthSq(perp);
-
-			if (dSq < maxDistSq && t < minT)
-			{
-				minT = t;
-				minIndex = i;
-			}
-		}
-	}
-
-	outT = minT;
-
-	return minIndex;
 }
 
 // calculates local space positions given a set of particles and rigid indices

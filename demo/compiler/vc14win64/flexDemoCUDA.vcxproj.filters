@@ -1,0 +1,224 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="demo" />
+    <Filter Include="demo\scenes" />
+    <Filter Include="demo\scenes\components">
+      <UniqueIdentifier>{744c56f4-9359-4dc8-ba95-28a42fc477d9}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\..\SimBuffer.h">
+      <Filter>demo</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\FlexParams.h">
+      <Filter>demo</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\GlobalVar.h">
+      <Filter>demo</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\UIController.h">
+      <Filter>demo</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\RenderParam.h">
+      <Filter>demo</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\SDLController.h">
+      <Filter>demo</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\ConsoleController.h">
+      <Filter>demo</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\FlexController.h">
+      <Filter>demo</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\scenes\cell.h">
+      <Filter>demo\scenes</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\scenes\components\cytoplasm.h">
+      <Filter>demo\scenes\components</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\scenes\components\kernel.h">
+      <Filter>demo\scenes\components</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\scenes\components\shell.h">
+      <Filter>demo\scenes\components</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\component.h">
+      <Filter>demo</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\..\imgui.cpp">
+      <Filter>demo</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\main.cpp">
+      <Filter>demo</Filter>
+    </ClCompile>
+    <ClInclude Include="..\..\benchmark.h">
+      <Filter>demo</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\helpers.h">
+      <Filter>demo</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\imgui.h">
+      <Filter>demo</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\scenes.h">
+      <Filter>demo</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\shaders.h">
+      <Filter>demo</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\stb_truetype.h">
+      <Filter>demo</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="opengl">
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\..\opengl\imguiRenderGL.cpp">
+      <Filter>opengl</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\opengl\shader.cpp">
+      <Filter>opengl</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\opengl\shadersGL.cpp">
+      <Filter>opengl</Filter>
+    </ClCompile>
+    <ClInclude Include="..\..\opengl\imguiRenderGL.h">
+      <Filter>opengl</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\opengl\shader.h">
+      <Filter>opengl</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="include">
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\..\..\include\NvFlex.h">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\include\NvFlexDevice.h">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\include\NvFlexExt.h">
+      <Filter>include</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="core">
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\..\..\core\aabbtree.cpp">
+      <Filter>core</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\core\core.cpp">
+      <Filter>core</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\core\extrude.cpp">
+      <Filter>core</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\core\maths.cpp">
+      <Filter>core</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\core\mesh.cpp">
+      <Filter>core</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\core\perlin.cpp">
+      <Filter>core</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\core\pfm.cpp">
+      <Filter>core</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\core\platform.cpp">
+      <Filter>core</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\core\sdf.cpp">
+      <Filter>core</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\core\tga.cpp">
+      <Filter>core</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\core\voxelize.cpp">
+      <Filter>core</Filter>
+    </ClCompile>
+    <ClInclude Include="..\..\..\core\aabbtree.h">
+      <Filter>core</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\core\cloth.h">
+      <Filter>core</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\core\convex.h">
+      <Filter>core</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\core\core.h">
+      <Filter>core</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\core\extrude.h">
+      <Filter>core</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\core\mat22.h">
+      <Filter>core</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\core\mat33.h">
+      <Filter>core</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\core\mat44.h">
+      <Filter>core</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\core\maths.h">
+      <Filter>core</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\core\matnn.h">
+      <Filter>core</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\core\mesh.h">
+      <Filter>core</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\core\perlin.h">
+      <Filter>core</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\core\pfm.h">
+      <Filter>core</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\core\platform.h">
+      <Filter>core</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\core\point3.h">
+      <Filter>core</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\core\quat.h">
+      <Filter>core</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\core\sdf.h">
+      <Filter>core</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\core\skylight.h">
+      <Filter>core</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\core\tga.h">
+      <Filter>core</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\core\types.h">
+      <Filter>core</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\core\vec2.h">
+      <Filter>core</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\core\vec3.h">
+      <Filter>core</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\core\vec4.h">
+      <Filter>core</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\core\voxelize.h">
+      <Filter>core</Filter>
+    </ClInclude>
+  </ItemGroup>
+</Project>

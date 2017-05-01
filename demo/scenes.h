@@ -27,14 +27,29 @@
 
 #pragma once
 
-#include "component.h"
+Vec3 g_lightPos;
+Vec3 g_lightDir;
+Vec3 g_lightTarget;
 
-class Scene : public Component
+Vec3 g_sceneLower;
+Vec3 g_sceneUpper;
+
+class Scene
 {
 public:
 
 	Scene(const char* name) : mName(name) {}
 	
+	virtual void Initialize() = 0;
+	virtual void PostInitialize() {}
+	
+	// update any buffers (all guaranteed to be mapped here)
+	virtual void Update() {}	
+
+	// send any changes to flex (all buffers guaranteed to be unmapped here)
+	virtual void Sync() {}
+	
+	virtual void Draw(int pass) {}
 	virtual void KeyDown(int key) {}
 	virtual void DoGui() {}
 	virtual void CenterCamera() {}
@@ -45,6 +60,5 @@ public:
 
 	const char* mName;
 };
-
 
 #include "scenes/cell.h"

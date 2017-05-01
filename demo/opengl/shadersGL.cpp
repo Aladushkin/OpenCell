@@ -35,29 +35,24 @@
 #include "../../external/SDL2-2.0.4/include/SDL.h"
 
 #include "imguiRenderGL.h"
-
 #include "shader.h"
 
-#ifdef ANDROID
-#include "android/Log.h"
-#include "android/AndroidDefine.h"
-#include "android/AndroidMatrixTool.h"
-#endif
+#include "../RenderParam.h"
 
 #define CudaCheck(x) { cudaError_t err = x; if (err != cudaSuccess) { printf("Cuda error: %d in %s at %s:%d\n", err, #x, __FILE__, __LINE__); assert(0); } }
+
+//extern int g_msaaSamples;
+extern RenderConfig renderConfig;
+
+extern GLuint g_msaaFbo;
+extern GLuint g_msaaColorBuf;
+extern GLuint g_msaaDepthBuf;
 
 namespace
 {
 
-int g_msaaSamples;
-GLuint g_msaaFbo;
-GLuint g_msaaColorBuf;
-GLuint g_msaaDepthBuf;
-
-int g_screenWidth;
-int g_screenHeight;
-
-SDL_Window* g_window;
+//int g_screenWidth;
+//int g_screenHeight;
 
 static float gSpotMin = 0.5f;
 static float gSpotMax = 1.0f;
@@ -84,37 +79,7 @@ struct ShadowMap
 	GLuint framebuffer;
 };
 
-
-void InitRender(SDL_Window* window, bool fullscreen, int msaaSamples)
-{
-	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
-	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 2);
-
-	//SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
-	SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_COMPATIBILITY);
-
-	// Turn on double buffering with a 24bit Z buffer.
-	SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
-	SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
-
-	SDL_GL_CreateContext(window);
-
-	// This makes our buffer swap syncronized with the monitor's vertical refresh
-	SDL_GL_SetSwapInterval(1);
-
-	glewExperimental = GL_TRUE;
-	glewInit();
-
-	imguiRenderGLInit(GetFilePathByPlatform("../../data/DroidSans.ttf").c_str());
-
-	g_msaaSamples = msaaSamples;
-	g_window = window;
-}
-
-void DestroyRender()
-{
-
-}
+void DestroyRender() {}
 
 void StartFrame(Vec4 clearColor)
 {
@@ -128,8 +93,6 @@ void StartFrame(Vec4 clearColor)
 	glVerify(glBindFramebuffer(GL_DRAW_FRAMEBUFFER_EXT, g_msaaFbo));
 	glVerify(glClearColor(powf(clearColor.x, 1.0f / 2.2f), powf(clearColor.y, 1.0f / 2.2f), powf(clearColor.z, 1.0f / 2.2f), 0.0f));
 	glVerify(glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT));
-
-
 }
 
 void EndFrame()
@@ -139,7 +102,7 @@ void EndFrame()
 		// blit the msaa buffer to the window
 		glVerify(glBindFramebuffer(GL_READ_FRAMEBUFFER_EXT, g_msaaFbo));
 		glVerify(glBindFramebuffer(GL_DRAW_FRAMEBUFFER_EXT, 0));
-		glVerify(glBlitFramebuffer(0, 0, g_screenWidth, g_screenHeight, 0, 0, g_screenWidth, g_screenHeight, GL_COLOR_BUFFER_BIT, GL_LINEAR));
+		glVerify(glBlitFramebuffer(0, 0, renderConfig.GetWidth(), renderConfig.GetHeight(), 0, 0, renderConfig.GetWidth(), renderConfig.GetHeight(), GL_COLOR_BUFFER_BIT, GL_LINEAR));
 	}
 
 		// render help to back buffer
@@ -202,7 +165,7 @@ void imguiGraphDraw()
 	glPushMatrix();
 	glLoadIdentity();
 
-	const Matrix44 ortho = OrthographicMatrix(0.0f, float(g_screenWidth), 0.0f, float(g_screenHeight), -1.0f, 1.0f);
+	const Matrix44 ortho = OrthographicMatrix(0.0f, float( renderConfig.GetWidth()), 0.0f, float(renderConfig.GetHeight()), -1.0f, 1.0f);
 
 	glMatrixMode(GL_PROJECTION);
 	glPushMatrix();
@@ -226,51 +189,6 @@ void imguiGraphDraw()
 	glPopMatrix();
 }
 
-void ReshapeRender(SDL_Window* window)
-{
-	int width, height;
-	SDL_GetWindowSize(window, &width, &height);
-
-	if (g_msaaSamples)
-	{
-		glVerify(glBindFramebuffer(GL_FRAMEBUFFER, 0));
-
-		if (g_msaaFbo)
-		{
-			glVerify(glDeleteFramebuffers(1, &g_msaaFbo));
-			glVerify(glDeleteRenderbuffers(1, &g_msaaColorBuf));
-			glVerify(glDeleteRenderbuffers(1, &g_msaaDepthBuf));
-		}
-
-		int samples;
-		glGetIntegerv(GL_MAX_SAMPLES_EXT, &samples);
-
-		// clamp samples to 4 to avoid problems with point sprite scaling
-		samples = Min(samples, Min(g_msaaSamples, 4));
-
-		glVerify(glGenFramebuffers(1, &g_msaaFbo));
-		glVerify(glBindFramebuffer(GL_FRAMEBUFFER, g_msaaFbo));
-
-		glVerify(glGenRenderbuffers(1, &g_msaaColorBuf));
-		glVerify(glBindRenderbuffer(GL_RENDERBUFFER, g_msaaColorBuf));
-		glVerify(glRenderbufferStorageMultisample(GL_RENDERBUFFER, samples, GL_RGBA8, width, height));
-
-		glVerify(glGenRenderbuffers(1, &g_msaaDepthBuf));
-		glVerify(glBindRenderbuffer(GL_RENDERBUFFER, g_msaaDepthBuf));
-		glVerify(glRenderbufferStorageMultisample(GL_RENDERBUFFER, samples, GL_DEPTH_COMPONENT, width, height));
-		glVerify(glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, g_msaaDepthBuf));
-
-		glVerify(glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, g_msaaColorBuf));
-
-		glVerify(glCheckFramebufferStatus(GL_FRAMEBUFFER));
-
-		glEnable(GL_MULTISAMPLE);
-	}
-
-	g_screenWidth = width;
-	g_screenHeight = height;
-}
-
 void GetViewRay(int x, int y, Vec3& origin, Vec3& dir)
 {
 	double modelview[16];
@@ -283,22 +201,10 @@ void GetViewRay(int x, int y, Vec3& origin, Vec3& dir)
 	glGetIntegerv(GL_VIEWPORT, viewport);
 
 	double nearPos[3];
-// Begin Add Android Support
-#ifdef ANDROID
-	glhUnProjectf(double(x), double(y), 0.0f, modelview, projection, viewport, nearPos);
-#else
 	gluUnProject(double(x), double(y), 0.0f, modelview, projection, viewport, &nearPos[0], &nearPos[1], &nearPos[2]);
-#endif
-// End Add Android Support
 
 	double farPos[3];
-// Begin Add Android Support
-#ifdef ANDROID
-	glhUnProjectf(double(x), double(y), 1.0f, modelview, projection, viewport, farPos);
-#else
 	gluUnProject(double(x), double(y), 1.0f, modelview, projection, viewport, &farPos[0], &farPos[1], &farPos[2]);
-#endif	
-// End Add Android Support
 
 	origin = Vec3(float(nearPos[0]), float(nearPos[1]), float(nearPos[2]));
 	dir = Normalize(Vec3(float(farPos[0]-nearPos[0]), float(farPos[1]-nearPos[1]), float(farPos[2]-nearPos[2])));
@@ -312,14 +218,10 @@ void ReadFrame(int* backbuffer, int width, int height)
 
 void PresentFrame(bool fullsync)
 {
-#ifndef ANDROID
 	SDL_GL_SetSwapInterval(fullsync);
 	glFinish();
-	SDL_GL_SwapWindow(g_window);
-#endif
-
+	SDL_GL_SwapWindow(renderConfig.GetWindow());
 }
-
 
 // fixes some banding artifacts with repeated blending during thickness and diffuse rendering
 #define USE_HDR_DIFFUSE_BLEND 0
@@ -722,14 +624,6 @@ void DrawPlane(const Vec4& p);
 static GLuint s_diffuseProgram = GLuint(-1);
 static GLuint s_shadowProgram = GLuint(-1);
 
-#ifdef ANDROID
-void ResetProgramId()
-{
-	s_diffuseProgram = GLuint(-1);
-	s_shadowProgram = GLuint(-1);
-}
-#endif
-
 static const int kShadowResolution = 2048;
 
 ShadowMap* ShadowCreate()
@@ -805,7 +699,7 @@ void ShadowEnd()
 
 void BindSolidShader(Vec3 lightPos, Vec3 lightTarget, Matrix44 lightTransform, ShadowMap* shadowMap, float bias, Vec4 fogColor)
 {
-	glVerify(glViewport(0, 0, g_screenWidth, g_screenHeight));
+	glVerify(glViewport(0, 0, renderConfig.GetWidth(), renderConfig.GetHeight()));
 
 	if (s_diffuseProgram == GLuint(-1))
 		s_diffuseProgram = CompileProgram(vertexShader, fragmentShader);
@@ -1079,7 +973,7 @@ void ReflectEnd(ReflectMap* map, int width, int height)
 
 	glBindFramebuffer(GL_FRAMEBUFFER, g_msaaFbo);
 
-	glViewport(0, 0, g_screenWidth, g_screenHeight);
+	glViewport(0, 0, renderConfig.GetWidth(), renderConfig.GetHeight());
 }
 
 

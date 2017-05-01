@@ -34,26 +34,14 @@
 
 #include "../include/NvFlex.h"
 
-
-#if FLEX_DX
-
-#include <d3d11.h>
-typedef ID3D11Buffer* VertexBuffer;
-typedef ID3D11Buffer* IndexBuffer;
-
-void GetRenderDevice(ID3D11Device** device, ID3D11DeviceContext** context);
-
-#else
-
 typedef unsigned int VertexBuffer;
 typedef unsigned int IndexBuffer;
 typedef unsigned int Texture;
 
-#endif
-
 struct SDL_Window;
 
-void InitRender(SDL_Window* window, bool fullscreen, int msaa);
+
+//void InitRender(SDL_Window* window, bool fullscreen, int msaaSamples);
 void DestroyRender();
 void ReshapeRender(SDL_Window* window);
 

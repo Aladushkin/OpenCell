@@ -1,0 +1,14 @@
+﻿  main.cpp
+c:\users\hapki\downloads\flex-110\flex\demo\helpers.h(187): warning C4267: 'argument': conversion from 'size_t' to 'int', possible loss of data
+c:\users\hapki\downloads\flex-110\flex\demo\helpers.h(486): warning C4267: 'argument': conversion from 'size_t' to 'int', possible loss of data
+c:\users\hapki\downloads\flex-110\flex\demo\helpers.h(584): warning C4267: 'initializing': conversion from 'size_t' to 'int', possible loss of data
+c:\users\hapki\downloads\flex-110\flex\demo\helpers.h(670): warning C4267: 'argument': conversion from 'size_t' to 'int', possible loss of data
+c:\users\hapki\downloads\flex-110\flex\demo\helpers.h(684): warning C4267: 'argument': conversion from 'size_t' to 'int', possible loss of data
+c:\users\hapki\downloads\flex-110\flex\demo\helpers.h(685): warning C4267: 'argument': conversion from 'size_t' to 'int', possible loss of data
+c:\users\hapki\downloads\flex-110\flex\demo\helpers.h(1202): warning C4267: 'argument': conversion from 'size_t' to 'int', possible loss of data
+c:\users\hapki\downloads\flex-110\flex\demo\helpers.h(1228): warning C4267: 'argument': conversion from 'size_t' to 'int', possible loss of data
+c:\users\hapki\downloads\flex-110\flex\demo\helpers.h(1251): warning C4267: 'argument': conversion from 'size_t' to 'int', possible loss of data
+c:\users\hapki\downloads\flex-110\flex\demo\helpers.h(1430): warning C4267: 'argument': conversion from 'size_t' to 'int', possible loss of data
+c:\users\hapki\downloads\flex-110\flex\demo\helpers.h(1491): warning C4267: 'argument': conversion from 'size_t' to 'int', possible loss of data
+c:\users\hapki\downloads\flex-110\flex\demo\scenes\components\cytoplasm.h(25): warning C4267: 'argument': conversion from 'size_t' to 'int', possible loss of data
+  flexDemoCUDA.vcxproj -> C:\Users\hapki\Downloads\flex-110\flex\demo\compiler\vc14win64\./../../../bin/win64\NvFlexDemoDebugCUDA_x64.exe

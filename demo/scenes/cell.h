@@ -53,8 +53,8 @@ public:
 
 		clearBuffers();
 
-		delete shell;
-		delete cytoplasm;
+//		delete shell;
+//		delete cytoplasm;
 
 		shell = new Shell(group++);
 		shell->Initialize();
