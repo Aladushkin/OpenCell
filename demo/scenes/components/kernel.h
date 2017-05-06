@@ -23,6 +23,7 @@ public:
 
 		CreateParticleShape(GetFilePathByPlatform("../../data/sphere.ply").c_str(), Vec3(2.5f, 0.9f ,1.5f), size, 0.0f, sampling, Vec3(0.0f, 0.0f, 0.0f), mass[0], true, 1.0f, NvFlexMakePhase(group++, 0), true, 0.0001f);
 	};
+
 	void PostInitialize() {}
 
 	void Update() {}

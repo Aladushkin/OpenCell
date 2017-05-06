@@ -43,7 +43,7 @@ public:
 		g_params.gravity[1] *= 1.0f;
 		g_params.collisionDistance = 0.01f;
 		g_params.solidPressure = 0.0f;
-
+		g_params.solidRestDistance = 0.060f;
 		g_params.fluid = true;
 
 		g_params.fluidRestDistance = radius*0.65f;
