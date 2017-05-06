@@ -56,6 +56,8 @@ public:
 	}
 
 	void Initialize() {
+
+
 		Mesh* mesh = ImportMesh(GetFilePathByPlatform("../../data/sphere_high.ply").c_str());
 		Vec3 lower = Vec3(2.0f + 0 * 2.0f, 0.4f + 0 * 1.2f, 1.0f);
 

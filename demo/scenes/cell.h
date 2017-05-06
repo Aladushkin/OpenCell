@@ -62,12 +62,18 @@ public:
 		cytoplasm = new Cytoplasm(group++);
 		cytoplasm->Initialize();
 
+
+		kernel = new Kernel(group++);
+		kernel->Initialize();
+
+
 		mNumFluidParticles = cytoplasm->numberOfParticles;
 
 		g_drawPoints = false;
 		g_drawEllipsoids = true;
 		g_drawSprings = 0;
 		g_drawCloth = false;
+		g_drawMesh = true;
 		g_warmup = true;
 
 	}

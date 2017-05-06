@@ -22,7 +22,7 @@ public:
 		mesh->Transform(TranslationMatrix(Point3(lower)));
 
 		std::vector<Vec3> positions(10000);
-		int n = PoissonSample3D(0.45f, g_params.radius*0.42f, &positions[0], positions.size(), 10000);
+		int n = MyPoissonSample3D(0.45f, g_params.radius*0.42f, &positions[0], positions.size(), 10000);
 		//int n = TightPack3D(0.45f, g_params.radius*0.42f, &positions[0], positions.size());
 
 		const int vertStart = 0 * mesh->GetNumVertices();
@@ -58,6 +58,58 @@ public:
 	void Sync() {}
 
 	void Draw() {}
+
+	// Poisson sample the volume of a sphere with given separation
+	inline int MyPoissonSample3D(float radius, float separation, Vec3* points, int maxPoints, int maxAttempts)
+	{
+		// naive O(n^2) dart throwing algorithm to generate a Poisson distribution
+		int c = 0;
+		while (c < maxPoints)
+		{
+			int a = 0;
+			while (a < maxAttempts)
+			{
+				const Vec3 p = MyUniformSampleSphereVolume()*radius;
+
+				// test against points already generated
+				int i = 0;
+				for (; i < c; ++i)
+				{
+					Vec3 d = p - points[i];
+
+					// reject if closer than separation
+					if (LengthSq(d) < separation*separation)
+						break;
+				}
+
+				// sample passed all tests, accept
+				if (i == c)
+				{
+					points[c] = p;
+					++c;
+					break;
+				}
+
+				++a;
+			}
+
+			// exit if we reached the max attempts and didn't manage to add a point
+			if (a == maxAttempts)
+				break;
+		}
+
+		return c;
+	}
+
+	inline Vec3 MyUniformSampleSphereVolume()
+	{
+		for (;;)
+		{
+			Vec3 v = RandVec3();
+			if (Dot(v, v) < 1.0f && Dot(v,v) > 0.0f)
+				return v;
+		}
+	}
 
 	int group;
 

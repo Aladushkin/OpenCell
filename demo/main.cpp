@@ -219,7 +219,7 @@ void Init(int scene, bool centerCamera = true)
 
 	g_blur = 1.0f;
 	g_fluidColor = Vec4(0.1f, 0.4f, 0.8f, 1.0f);
-	g_meshColor = Vec3(0.9f, 0.9f, 0.9f);
+	g_meshColor = Vec3(0.0f, 0.0f, 0.0f);
 	g_drawEllipsoids = false;
 	g_drawPoints = true;
 	g_drawCloth = true;

@@ -1,21 +1,22 @@
 ﻿cl : Command line warning D9002: ignoring unknown option '/arch:SSE2'
   main.cpp
-c:\users\hapki\downloads\flex-110\flex\demo\helpers.h(187): warning C4267: 'argument': conversion from 'size_t' to 'int', possible loss of data
-c:\users\hapki\downloads\flex-110\flex\demo\helpers.h(486): warning C4267: 'argument': conversion from 'size_t' to 'int', possible loss of data
-c:\users\hapki\downloads\flex-110\flex\demo\helpers.h(584): warning C4267: 'initializing': conversion from 'size_t' to 'int', possible loss of data
-c:\users\hapki\downloads\flex-110\flex\demo\helpers.h(670): warning C4267: 'argument': conversion from 'size_t' to 'int', possible loss of data
-c:\users\hapki\downloads\flex-110\flex\demo\helpers.h(684): warning C4267: 'argument': conversion from 'size_t' to 'int', possible loss of data
-c:\users\hapki\downloads\flex-110\flex\demo\helpers.h(685): warning C4267: 'argument': conversion from 'size_t' to 'int', possible loss of data
-c:\users\hapki\downloads\flex-110\flex\demo\helpers.h(1202): warning C4267: 'argument': conversion from 'size_t' to 'int', possible loss of data
-c:\users\hapki\downloads\flex-110\flex\demo\helpers.h(1228): warning C4267: 'argument': conversion from 'size_t' to 'int', possible loss of data
-c:\users\hapki\downloads\flex-110\flex\demo\helpers.h(1251): warning C4267: 'argument': conversion from 'size_t' to 'int', possible loss of data
-c:\users\hapki\downloads\flex-110\flex\demo\helpers.h(1430): warning C4267: 'argument': conversion from 'size_t' to 'int', possible loss of data
-c:\users\hapki\downloads\flex-110\flex\demo\helpers.h(1491): warning C4267: 'argument': conversion from 'size_t' to 'int', possible loss of data
-c:\users\hapki\downloads\flex-110\flex\demo\scenes\components\cytoplasm.h(25): warning C4267: 'argument': conversion from 'size_t' to 'int', possible loss of data
+c:\users\dimjava\downloads\opencell\demo\helpers.h(187): warning C4267: 'argument': conversion from 'size_t' to 'int', possible loss of data
+c:\users\dimjava\downloads\opencell\demo\helpers.h(486): warning C4267: 'argument': conversion from 'size_t' to 'int', possible loss of data
+c:\users\dimjava\downloads\opencell\demo\helpers.h(584): warning C4267: 'initializing': conversion from 'size_t' to 'int', possible loss of data
+c:\users\dimjava\downloads\opencell\demo\helpers.h(670): warning C4267: 'argument': conversion from 'size_t' to 'int', possible loss of data
+c:\users\dimjava\downloads\opencell\demo\helpers.h(684): warning C4267: 'argument': conversion from 'size_t' to 'int', possible loss of data
+c:\users\dimjava\downloads\opencell\demo\helpers.h(685): warning C4267: 'argument': conversion from 'size_t' to 'int', possible loss of data
+c:\users\dimjava\downloads\opencell\demo\helpers.h(1202): warning C4267: 'argument': conversion from 'size_t' to 'int', possible loss of data
+c:\users\dimjava\downloads\opencell\demo\helpers.h(1228): warning C4267: 'argument': conversion from 'size_t' to 'int', possible loss of data
+c:\users\dimjava\downloads\opencell\demo\helpers.h(1251): warning C4267: 'argument': conversion from 'size_t' to 'int', possible loss of data
+c:\users\dimjava\downloads\opencell\demo\helpers.h(1430): warning C4267: 'argument': conversion from 'size_t' to 'int', possible loss of data
+c:\users\dimjava\downloads\opencell\demo\helpers.h(1491): warning C4267: 'argument': conversion from 'size_t' to 'int', possible loss of data
+c:\users\dimjava\downloads\opencell\demo\scenes\components\cytoplasm.h(25): warning C4267: 'argument': conversion from 'size_t' to 'int', possible loss of data
      Creating library ./../../../bin/win64\NvFlexDemoReleaseCUDA_x64.lib and object ./../../../bin/win64\NvFlexDemoReleaseCUDA_x64.exp
   Generating code
-  155 of 2173 functions ( 7.1%) were compiled, the rest were copied from previous compilation.
+  178 of 2546 functions ( 7.0%) were compiled, the rest were copied from previous compilation.
     0 functions were new in current compilation
-    13 functions had inline decision re-evaluated but remain unchanged
+    12 functions had inline decision re-evaluated but remain unchanged
   Finished generating code
-  flexDemoCUDA.vcxproj -> C:\Users\hapki\Downloads\flex-110\flex\demo\compiler\vc14win64\./../../../bin/win64\NvFlexDemoReleaseCUDA_x64.exe
+  flexDemoCUDA.vcxproj -> C:\Users\dimjava\Downloads\OpenCell\demo\compiler\vc14win64\./../../../bin/win64\NvFlexDemoReleaseCUDA_x64.exe
+  flexDemoCUDA.vcxproj -> ./../../../bin/win64\/NvFlexDemoReleaseCUDA_x64.exe.pdb (Full PDB)
